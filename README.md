@@ -1,6 +1,6 @@
-## Create Aptos Dapp Boilerplate Template
+## Aptos BaseDAO
 
-The Boilerplate template provides a starter dapp with all necessary dapp infrastructure and a simple wallet info implementation.
+Introduce Aptos BaseDAO
 
 
 The Boilerplate template provides:
