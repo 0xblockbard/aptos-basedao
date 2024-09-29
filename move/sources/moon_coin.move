@@ -3,9 +3,9 @@ module dao_generator_addr::moon_coin {
 
     struct MoonCoin {}
 
-    use std::string;
     use std::error;
     use std::signer;
+    use std::string;
 
     use aptos_framework::coin::{Self, BurnCapability, FreezeCapability, MintCapability};
 

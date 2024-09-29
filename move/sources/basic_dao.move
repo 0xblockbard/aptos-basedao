@@ -5,16 +5,14 @@ module dao_generator_addr::basic_dao {
     use std::string::{String};
     use std::option::{Self, Option};
 
-    use aptos_framework::aptos_coin::{AptosCoin};
-    use aptos_framework::coin::{Self};
-    use aptos_framework::primary_fungible_store;
-    use aptos_framework::fungible_asset::{
-        Self, Metadata
-    };
-    use aptos_framework::object::{Self, Object};
-
     use aptos_std::type_info;
     use aptos_std::smart_table::{Self, SmartTable};
+
+    use aptos_framework::coin::{Self};
+    use aptos_framework::primary_fungible_store;
+    use aptos_framework::object::{Self, Object};
+    use aptos_framework::aptos_coin::{AptosCoin};
+    use aptos_framework::fungible_asset::{Self, Metadata};
 
     // -----------------------------------
     // Seeds

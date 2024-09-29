@@ -11,15 +11,13 @@ module dao_generator_addr::basic_dao_test {
 
     use aptos_std::smart_table::{SmartTable};
     
-    use aptos_framework::primary_fungible_store;
-    use aptos_framework::event::{ was_event_emitted };
     use aptos_framework::timestamp;
-    use aptos_framework::aptos_coin::{AptosCoin};
     use aptos_framework::coin::{Self};
+    use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
-    use aptos_framework::fungible_asset::{
-        Metadata, MintRef, TransferRef, BurnRef
-    };
+    use aptos_framework::aptos_coin::{AptosCoin};
+    use aptos_framework::event::{was_event_emitted};
+    use aptos_framework::fungible_asset::{Metadata, MintRef, TransferRef, BurnRef};
 
     // -----------------------------------
     // Errors
