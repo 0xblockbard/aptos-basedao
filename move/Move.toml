@@ -4,9 +4,9 @@ version = "1.0.0"
 authors = []
 
 [addresses]
-dao_generator_addr = '0xa0980e2efd99261b8769d684b5eaf36aa31fef5b6bdbe65f0eac087168abf71d'
-token_addr         = '0xa0980e2efd99261b8769d684b5eaf36aa31fef5b6bdbe65f0eac087168abf71d'
-fee_receiver_addr  = '0xa0980e2efd99261b8769d684b5eaf36aa31fef5b6bdbe65f0eac087168abf71d'
+dao_generator_addr = '0x80fc7c711b3eeef9dc4d46cf2682196478a7dc5c6efaa49af7a5bffdb91c657a'
+token_addr         = '0x80fc7c711b3eeef9dc4d46cf2682196478a7dc5c6efaa49af7a5bffdb91c657a'
+fee_receiver_addr  = '0x80fc7c711b3eeef9dc4d46cf2682196478a7dc5c6efaa49af7a5bffdb91c657a'
 
 # [dev-addresses]
 # dao_generator_addr = '0x111'

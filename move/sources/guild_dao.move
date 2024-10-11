@@ -1,4 +1,4 @@
-module dao_generator_addr::basic_dao {
+module dao_generator_addr::guild_dao {
 
     use std::event;
     use std::signer;
@@ -12,13 +12,13 @@ module dao_generator_addr::basic_dao {
     use aptos_framework::primary_fungible_store;
     use aptos_framework::object::{Self, Object};
     use aptos_framework::aptos_coin::{AptosCoin};
-    use aptos_framework::fungible_asset::{Self, Metadata};
+    use aptos_framework::fungible_asset::{Metadata};
 
     // -----------------------------------
     // Seeds
     // -----------------------------------
 
-    const APP_OBJECT_SEED : vector<u8>   = b"DAO";
+    const APP_OBJECT_SEED : vector<u8>   = b"GUILD_DAO";
 
     // -----------------------------------
     // Structs
@@ -30,7 +30,9 @@ module dao_generator_addr::basic_dao {
         name: String,
         description: String,
         image_url: String,
-        governance_token_metadata: Object<Metadata>,
+
+        roles: SmartTable<String, u64>,         // role_name, multiplier (vote weight)
+        members: SmartTable<address, String>,   // member address, role
     }
 
     /// DaoSigner Struct
@@ -55,7 +57,7 @@ module dao_generator_addr::basic_dao {
         votes_pass: u64,
         votes_nay: u64,
         total_votes: u64,
-        success_vote_percent: u16,
+        min_amount_to_execute_proposal: u64,
 
         duration: u64,
         start_timestamp: u64,
@@ -79,9 +81,9 @@ module dao_generator_addr::basic_dao {
         opt_proposal_type: option::Option<String>, 
         opt_update_type: option::Option<String>,
         opt_duration: option::Option<u64>,
-        opt_success_vote_percent: option::Option<u16>,
         opt_min_amount_to_vote: option::Option<u64>,
         opt_min_amount_to_create_proposal: option::Option<u64>,
+        opt_min_amount_to_execute_proposal: option::Option<u64>,
 
         // action data for updating dao
         opt_dao_name: option::Option<String>,
@@ -103,9 +105,9 @@ module dao_generator_addr::basic_dao {
     /// ProposalType Struct
     struct ProposalType has store, drop {
         duration: u64,
-        success_vote_percent: u16,
         min_amount_to_vote: u64,
-        min_amount_to_create_proposal: u64
+        min_amount_to_create_proposal: u64,
+        min_amount_to_execute_proposal: u64
     }
 
     /// ProposalTypeTable Struct
@@ -170,12 +172,14 @@ module dao_generator_addr::basic_dao {
     const ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE: u64 = 14;
     const ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED: u64 = 15;
     const ERROR_MISMATCH_COIN_STRUCT_NAME: u64              = 16;
+    const ERROR_NOT_GUILD_MEMBER: u64                       = 17;
+    const ERROR_INSUFFICIENT_GUILD_PERMISSION: u64          = 18;
 
     // -----------------------------------
     // Constants
     // -----------------------------------
 
-    const CREATION_FEE: u64                                 = 300_000_000;      // 3
+    const CREATION_FEE: u64                                 = 0;     
     const FEE_RECEIVER: address                             = @fee_receiver_addr;
 
     // -----------------------------------
@@ -209,9 +213,9 @@ module dao_generator_addr::basic_dao {
         let proposal_type_table = smart_table::new<String, ProposalType>();
         smart_table::add(&mut proposal_type_table, std::string::utf8(b"standard"), ProposalType {
             duration: 100_000_000,
-            success_vote_percent: 30,
-            min_amount_to_vote: 30_000_000,
-            min_amount_to_create_proposal: 100_000_000
+            min_amount_to_vote: 100,
+            min_amount_to_create_proposal: 100,
+            min_amount_to_execute_proposal: 300
         });
 
         move_to(dao_signer, ProposalTypeTable {
@@ -221,12 +225,11 @@ module dao_generator_addr::basic_dao {
     }
 
     // can only be called once
-    public fun init_dao(
+    public entry fun init_dao(
         creator: &signer, 
         dao_name: String, 
         dao_description: String, 
-        dao_image_url: String, 
-        governance_token_metadata: Object<Metadata>
+        dao_image_url: String
     ) acquires DaoSigner {
 
         let dao_addr   = get_dao_addr();
@@ -242,13 +245,27 @@ module dao_generator_addr::basic_dao {
             abort ERROR_DAO_IS_ALREADY_SETUP
         };
 
+        // init RolesTable struct with default role types
+        let role_table = smart_table::new<String, u64>();
+        smart_table::add(&mut role_table, std::string::utf8(b"recruit")   , 100);
+        smart_table::add(&mut role_table, std::string::utf8(b"novice")    , 200);
+        smart_table::add(&mut role_table, std::string::utf8(b"squire")    , 300);
+        smart_table::add(&mut role_table, std::string::utf8(b"acolyte")   , 400);
+        smart_table::add(&mut role_table, std::string::utf8(b"knight")    , 500);
+        smart_table::add(&mut role_table, std::string::utf8(b"champion")  , 600);
+        smart_table::add(&mut role_table, std::string::utf8(b"elder")     , 700);
+        smart_table::add(&mut role_table, std::string::utf8(b"executive") , 800);
+
         // set dao struct
         move_to(&dao_signer, Dao {
             creator: signer::address_of(creator),
             name: dao_name,
             description: dao_description,
             image_url: dao_image_url,
-            governance_token_metadata
+
+            roles: role_table,
+            members: smart_table::new<address, String>()
+
         });
 
     }
@@ -305,6 +322,13 @@ module dao_generator_addr::basic_dao {
         let dao                 = borrow_global<Dao>(dao_addr);
         let creator_address     = signer::address_of(creator);
 
+        // verify creator is a guild member
+        assert!(smart_table::contains(&dao.members, creator_address), ERROR_NOT_GUILD_MEMBER);
+
+        // get creator role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, creator_address);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
         // get tables
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
@@ -315,14 +339,13 @@ module dao_generator_addr::basic_dao {
                 proposals: smart_table::new(),
             });
         };
-        let proposal_table      = borrow_global_mut<ProposalTable>(creator_address);
+        let proposal_table    = borrow_global_mut<ProposalTable>(creator_address);
 
         // get proposal type
         let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
 
-        // verify sufficient governance token balance to create a proposal
-        let creator_balance = primary_fungible_store::balance(signer::address_of(creator), dao.governance_token_metadata);
-        assert!(creator_balance >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GOVERNANCE_TOKENS);
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
 
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
@@ -342,7 +365,7 @@ module dao_generator_addr::basic_dao {
             votes_pass: 0,
             votes_nay: 0,
             total_votes: 0,
-            success_vote_percent: proposal_type_obj.success_vote_percent,
+            min_amount_to_execute_proposal: proposal_type_obj.min_amount_to_execute_proposal,
             duration,              
             start_timestamp: current_time,  
             end_timestamp: end_timestamp,   
@@ -361,7 +384,7 @@ module dao_generator_addr::basic_dao {
             opt_proposal_type: option::none(),
             opt_update_type: option::none(),
             opt_duration: option::none(),
-            opt_success_vote_percent: option::none(),
+            opt_min_amount_to_execute_proposal: option::none(),
             opt_min_amount_to_vote: option::none(),
             opt_min_amount_to_create_proposal: option::none(),
 
@@ -406,6 +429,13 @@ module dao_generator_addr::basic_dao {
         let dao                 = borrow_global<Dao>(dao_addr);
         let creator_address     = signer::address_of(creator);
 
+        // verify creator is a guild member
+        assert!(smart_table::contains(&dao.members, creator_address), ERROR_NOT_GUILD_MEMBER);
+
+        // get creator role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, creator_address);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
         // get tables
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
@@ -421,9 +451,8 @@ module dao_generator_addr::basic_dao {
         // get proposal type
         let proposal_type_obj   = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
 
-        // verify sufficient governance token balance to create a proposal
-        let creator_balance = primary_fungible_store::balance(signer::address_of(creator), dao.governance_token_metadata);
-        assert!(creator_balance >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GOVERNANCE_TOKENS);
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
 
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
@@ -443,7 +472,7 @@ module dao_generator_addr::basic_dao {
             votes_pass: 0,
             votes_nay: 0,
             total_votes: 0,
-            success_vote_percent: proposal_type_obj.success_vote_percent,
+            min_amount_to_execute_proposal: proposal_type_obj.min_amount_to_execute_proposal,
             duration,              
             start_timestamp: current_time,  
             end_timestamp: end_timestamp,   
@@ -462,7 +491,7 @@ module dao_generator_addr::basic_dao {
             opt_proposal_type: option::none(),
             opt_update_type: option::none(),
             opt_duration: option::none(),
-            opt_success_vote_percent: option::none(),
+            opt_min_amount_to_execute_proposal: option::none(),
             opt_min_amount_to_vote: option::none(),
             opt_min_amount_to_create_proposal: option::none(),
 
@@ -501,14 +530,21 @@ module dao_generator_addr::basic_dao {
         opt_proposal_type: String, 
         opt_update_type: String,
         opt_duration: Option<u64>,
-        opt_success_vote_percent: Option<u16>,
         opt_min_amount_to_vote: Option<u64>,
-        opt_min_amount_to_create_proposal: Option<u64>
+        opt_min_amount_to_create_proposal: Option<u64>,
+        opt_min_amount_to_execute_proposal: Option<u64>
     ) acquires ProposalTable, ProposalRegistry, ProposalTypeTable, Dao {
 
         let dao_addr            = get_dao_addr();
         let dao                 = borrow_global<Dao>(dao_addr);
         let creator_address     = signer::address_of(creator);
+
+        // verify creator is a guild member
+        assert!(smart_table::contains(&dao.members, creator_address), ERROR_NOT_GUILD_MEMBER);
+
+        // get creator role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, creator_address);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
 
         // get tables
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
@@ -525,9 +561,8 @@ module dao_generator_addr::basic_dao {
         // get proposal type
         let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
 
-        // verify sufficient governance token balance to create a proposal
-        let creator_balance = primary_fungible_store::balance(signer::address_of(creator), dao.governance_token_metadata);
-        assert!(creator_balance >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GOVERNANCE_TOKENS);
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
 
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
@@ -552,7 +587,7 @@ module dao_generator_addr::basic_dao {
             votes_pass: 0,
             votes_nay: 0,
             total_votes: 0,
-            success_vote_percent: proposal_type_obj.success_vote_percent,
+            min_amount_to_execute_proposal: proposal_type_obj.min_amount_to_execute_proposal,
             duration,
             start_timestamp: current_time,  
             end_timestamp: end_timestamp,   
@@ -571,9 +606,9 @@ module dao_generator_addr::basic_dao {
             opt_proposal_type: option::some(opt_proposal_type),
             opt_update_type: option::some(opt_update_type),
             opt_duration,
-            opt_success_vote_percent,
             opt_min_amount_to_vote,
             opt_min_amount_to_create_proposal,
+            opt_min_amount_to_execute_proposal,
 
             // update dao data
             opt_dao_name: option::none(),
@@ -616,6 +651,13 @@ module dao_generator_addr::basic_dao {
         let dao                 = borrow_global<Dao>(dao_addr);
         let creator_address     = signer::address_of(creator);
 
+        // verify creator is a guild member
+        assert!(smart_table::contains(&dao.members, creator_address), ERROR_NOT_GUILD_MEMBER);
+
+        // get creator role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, creator_address);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+        
         // get tables
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
@@ -631,9 +673,8 @@ module dao_generator_addr::basic_dao {
         // get proposal type
         let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
 
-        // verify sufficient governance token balance to create a proposal
-        let creator_balance = primary_fungible_store::balance(signer::address_of(creator), dao.governance_token_metadata);
-        assert!(creator_balance >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GOVERNANCE_TOKENS);
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
 
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
@@ -653,7 +694,7 @@ module dao_generator_addr::basic_dao {
             votes_pass: 0,
             votes_nay: 0,
             total_votes: 0,
-            success_vote_percent: proposal_type_obj.success_vote_percent,
+            min_amount_to_execute_proposal: proposal_type_obj.min_amount_to_execute_proposal,
             duration,
             start_timestamp: current_time,  
             end_timestamp: end_timestamp,   
@@ -672,9 +713,9 @@ module dao_generator_addr::basic_dao {
             opt_proposal_type: option::none(),
             opt_update_type: option::none(),
             opt_duration: option::none(),
-            opt_success_vote_percent: option::none(),
             opt_min_amount_to_vote: option::none(),
             opt_min_amount_to_create_proposal: option::none(),
+            opt_min_amount_to_execute_proposal: option::none(),
 
             // update dao data
             opt_dao_name,
@@ -714,6 +755,13 @@ module dao_generator_addr::basic_dao {
         let dao                 = borrow_global<Dao>(dao_addr);
         let creator_address     = signer::address_of(creator);
 
+        // verify creator is a guild member
+        assert!(smart_table::contains(&dao.members, creator_address), ERROR_NOT_GUILD_MEMBER);
+
+        // get creator role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, creator_address);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
         // get tables
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
@@ -729,9 +777,8 @@ module dao_generator_addr::basic_dao {
         // get proposal type
         let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
 
-        // verify sufficient governance token balance to create a proposal
-        let creator_balance = primary_fungible_store::balance(signer::address_of(creator), dao.governance_token_metadata);
-        assert!(creator_balance >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GOVERNANCE_TOKENS);
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
 
         // init proposal fields
         let proposal_id       = proposal_registry.next_proposal_id;
@@ -751,7 +798,7 @@ module dao_generator_addr::basic_dao {
             votes_pass: 0,
             votes_nay: 0,
             total_votes: 0,
-            success_vote_percent: proposal_type_obj.success_vote_percent,
+            min_amount_to_execute_proposal: proposal_type_obj.min_amount_to_execute_proposal,
             duration,
             start_timestamp: current_time,  
             end_timestamp: end_timestamp,   
@@ -770,9 +817,9 @@ module dao_generator_addr::basic_dao {
             opt_proposal_type: option::none(),
             opt_update_type: option::none(),
             opt_duration: option::none(),
-            opt_success_vote_percent: option::none(),
             opt_min_amount_to_vote: option::none(),
             opt_min_amount_to_create_proposal: option::none(),
+            opt_min_amount_to_execute_proposal: option::none(),
 
             // update dao data
             opt_dao_name: option::none(),
@@ -811,6 +858,13 @@ module dao_generator_addr::basic_dao {
         let dao         = borrow_global<Dao>(dao_addr);
         let voter_addr  = signer::address_of(voter);
 
+        // verify creator is a guild member
+        assert!(smart_table::contains(&dao.members, voter_addr), ERROR_NOT_GUILD_MEMBER);
+
+        // get voter role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, voter_addr);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
         // get tables
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
@@ -825,9 +879,8 @@ module dao_generator_addr::basic_dao {
         // get proposal type
         let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal.proposal_type);
 
-        // verify sufficient voter governance token balance to vote
-        let voter_balance = primary_fungible_store::balance(voter_addr, dao.governance_token_metadata);
-        assert!(voter_balance >= proposal_type_obj.min_amount_to_vote, ERROR_INSUFFICIENT_GOVERNANCE_TOKENS);
+        // verify sufficient role vote weight to vote for proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_vote, ERROR_INSUFFICIENT_GUILD_PERMISSION);
 
         // Ensure the proposal is still active and within the voting period
         let current_time   = aptos_framework::timestamp::now_seconds();
@@ -839,7 +892,7 @@ module dao_generator_addr::basic_dao {
             // Record the vote
             let vote_count = VoteCount {
                 vote_type,
-                vote_count: voter_balance,
+                vote_count: vote_weight
             };
 
             // Add the voter and their vote to the voters' table
@@ -848,22 +901,22 @@ module dao_generator_addr::basic_dao {
         
         // Update the proposal votes based on the vote type
         if (vote_type == 1) {
-            proposal.votes_yay = proposal.votes_yay + voter_balance;
+            proposal.votes_yay = proposal.votes_yay + vote_weight;
         } else if (vote_type == 0) {
-            proposal.votes_nay = proposal.votes_nay + voter_balance;
+            proposal.votes_nay = proposal.votes_nay + vote_weight;
         } else if (vote_type == 2) {
-            proposal.votes_pass = proposal.votes_pass + voter_balance;
+            proposal.votes_pass = proposal.votes_pass + vote_weight;
         };
 
         // Update total votes
-        proposal.total_votes = proposal.total_votes + voter_balance;
+        proposal.total_votes = proposal.total_votes + vote_weight;
 
         // emit event for new vote event
         event::emit(NewVoteEvent {
             proposal_id,
             voter: voter_addr,
             vote_type,
-            vote_count: voter_balance
+            vote_count: vote_weight
         });
 
     }
@@ -897,13 +950,8 @@ module dao_generator_addr::basic_dao {
         let current_time   = aptos_framework::timestamp::now_seconds();
         assert!(current_time >= proposal.end_timestamp, ERROR_PROPOSAL_HAS_NOT_ENDED);
 
-        // Calculate the required votes to pass
-        let req_success_vote_percent = proposal.success_vote_percent;
-        let total_supply             = option::destroy_some(fungible_asset::supply(dao.governance_token_metadata));
-        let required_votes           = (total_supply * (req_success_vote_percent as u128)) / 10000;
-
         // execute proposal if sufficient votes gathered
-        if ((proposal.votes_yay as u128) >= required_votes) {
+        if (proposal.votes_yay >= proposal.min_amount_to_execute_proposal) {
             
             // Proposal passed
             if (proposal.proposal_sub_type == std::string::utf8(b"fa_transfer")) {
@@ -935,15 +983,15 @@ module dao_generator_addr::basic_dao {
                 if (update_type == std::string::utf8(b"update")) {
                 
                     let duration: u64                        = option::destroy_some(proposal.opt_duration);
-                    let success_vote_percent: u16            = option::destroy_some(proposal.opt_success_vote_percent);
                     let min_amount_to_vote: u64              = option::destroy_some(proposal.opt_min_amount_to_vote);
                     let min_amount_to_create_proposal: u64   = option::destroy_some(proposal.opt_min_amount_to_create_proposal);
+                    let min_amount_to_execute_proposal: u64  = option::destroy_some(proposal.opt_min_amount_to_execute_proposal);
 
                     let new_proposal_type = ProposalType {
                         duration,
-                        success_vote_percent,
                         min_amount_to_vote,
                         min_amount_to_create_proposal,
+                        min_amount_to_execute_proposal
                     };
 
                     smart_table::upsert(
@@ -1009,10 +1057,10 @@ module dao_generator_addr::basic_dao {
 
     public entry fun execute_coin_transfer_proposal<CoinType>(
         proposal_id: u64,
-    ) acquires ProposalTable, ProposalRegistry, Dao, DaoSigner {
+    ) acquires ProposalTable, ProposalRegistry, DaoSigner {
 
         let dao_addr    = get_dao_addr();
-        let dao         = borrow_global_mut<Dao>(dao_addr);
+        // let dao         = borrow_global_mut<Dao>(dao_addr);
         let dao_signer  = get_dao_signer(dao_addr);
 
         // get tables
@@ -1034,13 +1082,8 @@ module dao_generator_addr::basic_dao {
         let current_time   = aptos_framework::timestamp::now_seconds();
         assert!(current_time >= proposal.end_timestamp, ERROR_PROPOSAL_HAS_NOT_ENDED);
 
-        // Calculate the required votes to pass
-        let req_success_vote_percent = proposal.success_vote_percent;
-        let total_supply             = option::destroy_some(fungible_asset::supply(dao.governance_token_metadata));
-        let required_votes           = (total_supply * (req_success_vote_percent as u128)) / 10000;
-
         // execute proposal if sufficient votes gathered
-        if ((proposal.votes_yay as u128) >= required_votes) {
+        if (proposal.votes_yay >= proposal.min_amount_to_execute_proposal) {
             
             // Proposal passed
             if (proposal.proposal_sub_type == std::string::utf8(b"coin_transfer")) {
@@ -1095,10 +1138,14 @@ module dao_generator_addr::basic_dao {
     // -----------------------------------
 
     #[view]
-    public fun get_dao_info(): (address, String, String, String, Object<Metadata>) acquires Dao {
+    public fun get_dao_info(): (address, String, String, String, &SmartTable<String, u64>, &SmartTable<address, String>) acquires Dao {
         let dao_addr = get_dao_addr();
         let dao      = borrow_global<Dao>(dao_addr);
-        (dao.creator, dao.name, dao.description, dao.image_url, dao.governance_token_metadata)
+
+        let roles_ref   = &dao.roles;
+        let members_ref = &dao.members;
+
+        (dao.creator, dao.name, dao.description, dao.image_url, roles_ref, members_ref)
     }
 
 
@@ -1111,7 +1158,7 @@ module dao_generator_addr::basic_dao {
 
 
     #[view]
-    public fun get_proposal_type_info(proposal_type: String): (u64, u16, u64, u64) acquires ProposalTypeTable {
+    public fun get_proposal_type_info(proposal_type: String): (u64, u64, u64, u64) acquires ProposalTypeTable {
         let dao_addr            = get_dao_addr();
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
 
@@ -1120,15 +1167,15 @@ module dao_generator_addr::basic_dao {
 
         (
             proposal_type_ref.duration, 
-            proposal_type_ref.success_vote_percent, 
             proposal_type_ref.min_amount_to_vote, 
-            proposal_type_ref.min_amount_to_create_proposal
+            proposal_type_ref.min_amount_to_create_proposal,
+            proposal_type_ref.min_amount_to_execute_proposal
         )
     }
 
 
     #[view]
-    public fun get_proposal_info(proposal_id: u64): (String, String, String, String, u64, u64, u64, u64, u16, u64, u64, u64, String, bool) acquires ProposalRegistry, ProposalTable {
+    public fun get_proposal_info(proposal_id: u64): (String, String, String, String, u64, u64, u64, u64, u64, u64, u64, u64, String, bool) acquires ProposalRegistry, ProposalTable {
         
         let dao_addr       = get_dao_addr();
         
@@ -1155,7 +1202,7 @@ module dao_generator_addr::basic_dao {
             proposal_ref.votes_pass,
             proposal_ref.votes_nay,
             proposal_ref.total_votes,
-            proposal_ref.success_vote_percent,
+            proposal_ref.min_amount_to_execute_proposal,
 
             proposal_ref.duration,
             proposal_ref.start_timestamp,

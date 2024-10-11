@@ -1,7 +1,7 @@
 #[test_only]
-module dao_generator_addr::basic_dao_test {
+module dao_generator_addr::standard_dao_test {
 
-    use dao_generator_addr::basic_dao;
+    use dao_generator_addr::standard_dao;
     use token_addr::gov_token;
     use token_addr::moon_coin;
     
@@ -45,7 +45,7 @@ module dao_generator_addr::basic_dao_test {
     // Constants
     // -----------------------------------
 
-    const CREATION_FEE: u64                                 = 300_000_000;      // 3
+    const CREATION_FEE: u64                                 = 0;     
     const FEE_RECEIVER: address                             = @fee_receiver_addr;
 
     // -----------------------------------
@@ -168,7 +168,7 @@ module dao_generator_addr::basic_dao_test {
         let image_url       = std::string::utf8(b"Test DAO Image Url");
 
         // call setup dao
-        basic_dao::init_dao(
+        standard_dao::init_dao(
             creator,
             name,
             description,
@@ -197,7 +197,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
 
         // set up initial values for creating a campaign
         let name            = std::string::utf8(b"Test DAO Name");
@@ -209,7 +209,7 @@ module dao_generator_addr::basic_dao_test {
         let fee_receiver_balance_before = coin::balance<AptosCoin>(signer::address_of(fee_receiver));
 
         // call setup dao
-        basic_dao::init_dao(
+        standard_dao::init_dao(
             creator,
             name,
             description,
@@ -228,7 +228,7 @@ module dao_generator_addr::basic_dao_test {
             dao_description,
             dao_image_url,
             dao_governance_token_metadata
-        ) = basic_dao::get_dao_info();
+        ) = standard_dao::get_dao_info();
         
         // verify dao details
         assert!(dao_creator == signer::address_of(creator)          , 100);
@@ -262,7 +262,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
 
         // set up initial values for creating a campaign
         let name            = std::string::utf8(b"Test DAO Name");
@@ -270,7 +270,7 @@ module dao_generator_addr::basic_dao_test {
         let image_url       = std::string::utf8(b"Test DAO Image Url");
 
         // call setup dao
-        basic_dao::init_dao(
+        standard_dao::init_dao(
             creator,
             name,
             description,
@@ -279,7 +279,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         // call setup dao
-        basic_dao::init_dao(
+        standard_dao::init_dao(
             creator,
             name,
             description,
@@ -291,7 +291,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_standard_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -306,7 +306,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         let proposal_title       = std::string::utf8(b"Test Proposal Name");
@@ -314,7 +314,7 @@ module dao_generator_addr::basic_dao_test {
         let proposal_type        = std::string::utf8(b"standard");
 
         // should fail
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -325,7 +325,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_fa_transfer_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -340,7 +340,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
@@ -351,7 +351,7 @@ module dao_generator_addr::basic_dao_test {
         let opt_transfer_metadata   = gov_token_metadata;
 
         // should fail
-        basic_dao::create_fa_transfer_proposal(
+        standard_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -365,7 +365,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_coin_transfer_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -380,7 +380,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
@@ -391,7 +391,7 @@ module dao_generator_addr::basic_dao_test {
         let opt_coin_struct_name    = b"AptosCoin";
 
         // should fail
-        basic_dao::create_coin_transfer_proposal(
+        standard_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -405,7 +405,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_proposal_update_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -420,7 +420,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         let proposal_title                      = std::string::utf8(b"Test Proposal Name");
@@ -434,7 +434,7 @@ module dao_generator_addr::basic_dao_test {
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
 
         // should fail
-        basic_dao::create_proposal_update_proposal(
+        standard_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -451,7 +451,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_dao_update_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -466,7 +466,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
@@ -477,7 +477,7 @@ module dao_generator_addr::basic_dao_test {
         let opt_dao_image_url       = option::some(std::string::utf8(b"New DAO Image URL"));
 
         // should fail
-        basic_dao::create_dao_update_proposal(
+        standard_dao::create_dao_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -505,21 +505,21 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
-        let ( duration, _, _, _)   = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)   = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -528,7 +528,7 @@ module dao_generator_addr::basic_dao_test {
 
         // check event emits expected info
         let proposal_sub_type  = std::string::utf8(b"standard");
-        let new_proposal_event = basic_dao::test_NewProposalEvent(
+        let new_proposal_event = standard_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -557,24 +557,24 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_fa_transfer_proposal(
+        standard_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -586,7 +586,7 @@ module dao_generator_addr::basic_dao_test {
 
         // check event emits expected info
         let proposal_sub_type  = std::string::utf8(b"fa_transfer");
-        let new_proposal_event = basic_dao::test_NewProposalEvent(
+        let new_proposal_event = standard_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -615,14 +615,14 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id                         = basic_dao::get_next_proposal_id();
+        let proposal_id                         = standard_dao::get_next_proposal_id();
         let proposal_title                      = std::string::utf8(b"Test Proposal Name");
         let proposal_description                = std::string::utf8(b"Test Proposal Description");
         let proposal_type                       = std::string::utf8(b"standard");
@@ -632,10 +632,10 @@ module dao_generator_addr::basic_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_proposal_update_proposal(
+        standard_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -650,7 +650,7 @@ module dao_generator_addr::basic_dao_test {
 
         // check event emits expected info
         let proposal_sub_type  = std::string::utf8(b"proposal_update");
-        let new_proposal_event = basic_dao::test_NewProposalEvent(
+        let new_proposal_event = standard_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -665,7 +665,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INVALID_UPDATE_TYPE, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_INVALID_UPDATE_TYPE, location = standard_dao)]
     public entry fun test_user_cannot_create_proposal_update_proposal_with_invalid_update_type(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -680,7 +680,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
@@ -698,7 +698,7 @@ module dao_generator_addr::basic_dao_test {
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
 
         // should fail
-        basic_dao::create_proposal_update_proposal(
+        standard_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -728,24 +728,24 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_dao_name            = option::some(std::string::utf8(b"New DAO Name"));
         let opt_dao_description     = option::some(std::string::utf8(b"New DAO Description"));
         let opt_dao_image_url       = option::some(std::string::utf8(b"New DAO Image URL"));
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_dao_update_proposal(
+        standard_dao::create_dao_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -757,7 +757,7 @@ module dao_generator_addr::basic_dao_test {
 
         // check event emits expected info
         let proposal_sub_type  = std::string::utf8(b"dao_update");
-        let new_proposal_event = basic_dao::test_NewProposalEvent(
+        let new_proposal_event = standard_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -786,25 +786,25 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
         let proposal_sub_type      = std::string::utf8(b"standard");
         
-        let ( duration, success_vote_percent, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, success_vote_percent, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         let start_timestamp = timestamp::now_seconds();
         let end_timestamp   = timestamp::now_seconds() + duration;
 
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -812,14 +812,14 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
         // check event emits expected info
-        let new_vote_event = basic_dao::test_NewVoteEvent(
+        let new_vote_event = standard_dao::test_NewVoteEvent(
             proposal_id,
             signer::address_of(creator),
             vote_type,
@@ -848,7 +848,7 @@ module dao_generator_addr::basic_dao_test {
             
             view_result,
             view_executed
-        ) = basic_dao::get_proposal_info(proposal_id);
+        ) = standard_dao::get_proposal_info(proposal_id);
 
         assert!(view_proposal_type          == proposal_type                , 101);
         assert!(view_proposal_sub_type      == proposal_sub_type            , 102);
@@ -883,19 +883,19 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
         
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -903,14 +903,14 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 0; // vote NAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
         // check event emits expected info
-        let new_vote_event = basic_dao::test_NewVoteEvent(
+        let new_vote_event = standard_dao::test_NewVoteEvent(
             proposal_id,
             signer::address_of(creator),
             vote_type,
@@ -939,7 +939,7 @@ module dao_generator_addr::basic_dao_test {
             
             _view_result,
             _view_executed
-        ) = basic_dao::get_proposal_info(proposal_id);
+        ) = standard_dao::get_proposal_info(proposal_id);
 
         assert!(view_votes_yay              == 0                            , 101);
         assert!(view_votes_pass             == 0                            , 102);
@@ -964,19 +964,19 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
 
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -984,14 +984,14 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 2; // vote PASS
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
         // check event emits expected info
-        let new_vote_event = basic_dao::test_NewVoteEvent(
+        let new_vote_event = standard_dao::test_NewVoteEvent(
             proposal_id,
             signer::address_of(creator),
             vote_type,
@@ -1020,7 +1020,7 @@ module dao_generator_addr::basic_dao_test {
             
             _view_result,
             _view_executed
-        ) = basic_dao::get_proposal_info(proposal_id);
+        ) = standard_dao::get_proposal_info(proposal_id);
 
         assert!(view_votes_yay              == 0                            , 101);
         assert!(view_votes_pass             == mint_amount                  , 102);
@@ -1045,7 +1045,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator, member_one, and member_two
@@ -1054,12 +1054,12 @@ module dao_generator_addr::basic_dao_test {
         gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
         gov_token::mint(dao_generator, signer::address_of(member_two), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
         
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1067,21 +1067,21 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 0; // vote NAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
         vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
         );
 
         vote_type = 2; // vote PASS
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             member_two,
             proposal_id,
             vote_type
@@ -1106,7 +1106,7 @@ module dao_generator_addr::basic_dao_test {
             
             _view_result,
             _view_executed
-        ) = basic_dao::get_proposal_info(proposal_id);
+        ) = standard_dao::get_proposal_info(proposal_id);
 
         assert!(view_votes_yay              == mint_amount                  , 101);
         assert!(view_votes_pass             == mint_amount                  , 102);
@@ -1117,7 +1117,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_ALREADY_VOTED, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_ALREADY_VOTED, location = standard_dao)]
     public entry fun test_user_cannot_vote_twice_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1132,19 +1132,19 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
 
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1152,13 +1152,13 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1168,7 +1168,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_PROPOSAL_EXPIRED, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_PROPOSAL_EXPIRED, location = standard_dao)]
     public entry fun test_user_cannot_vote_for_expired_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1183,20 +1183,20 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
-        let ( duration, _, _, _)   = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)   = standard_dao::get_proposal_type_info(proposal_type);
 
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1207,7 +1207,7 @@ module dao_generator_addr::basic_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1217,7 +1217,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_user_with_insufficient_governance_tokens_cannot_vote_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1232,19 +1232,19 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
 
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1252,7 +1252,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
@@ -1275,21 +1275,21 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
         let proposal_sub_type      = std::string::utf8(b"standard");
-        let ( duration, _, _, _)   = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)   = standard_dao::get_proposal_type_info(proposal_type);
 
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1297,7 +1297,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1306,12 +1306,12 @@ module dao_generator_addr::basic_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
         // check event emits expected info
-        let proposal_executed_event = basic_dao::test_ProposalExecutedEvent(
+        let proposal_executed_event = standard_dao::test_ProposalExecutedEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -1327,7 +1327,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = standard_dao)]
     public entry fun test_proposal_cannot_be_executed_if_duration_has_not_ended(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1342,19 +1342,19 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
 
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1362,14 +1362,14 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
         // should fail
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
@@ -1391,21 +1391,21 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = basic_dao::get_next_proposal_id();
+        let proposal_id            = standard_dao::get_next_proposal_id();
         let proposal_title         = std::string::utf8(b"Test Proposal Name");
         let proposal_description   = std::string::utf8(b"Test Proposal Description");
         let proposal_type          = std::string::utf8(b"standard");
         let proposal_sub_type      = std::string::utf8(b"standard");
-        let ( duration, _, _, _)   = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)   = standard_dao::get_proposal_type_info(proposal_type);
 
-        basic_dao::create_standard_proposal(
+        standard_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1418,7 +1418,7 @@ module dao_generator_addr::basic_dao_test {
         gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
@@ -1427,12 +1427,12 @@ module dao_generator_addr::basic_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
         // check event emits expected info
-        let proposal_executed_event = basic_dao::test_ProposalExecutedEvent(
+        let proposal_executed_event = standard_dao::test_ProposalExecutedEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -1462,14 +1462,14 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id                         = basic_dao::get_next_proposal_id();
+        let proposal_id                         = standard_dao::get_next_proposal_id();
         let proposal_title                      = std::string::utf8(b"Test Proposal Name");
         let proposal_description                = std::string::utf8(b"Test Proposal Description");
         let proposal_type                       = std::string::utf8(b"standard");
@@ -1479,10 +1479,10 @@ module dao_generator_addr::basic_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_proposal_update_proposal(
+        standard_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1496,7 +1496,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1505,7 +1505,7 @@ module dao_generator_addr::basic_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
@@ -1515,7 +1515,7 @@ module dao_generator_addr::basic_dao_test {
             new_success_vote_percent, 
             new_min_amount_to_vote, 
             new_min_amount_to_create_proposal
-        )   = basic_dao::get_proposal_type_info(opt_proposal_type);
+        )   = standard_dao::get_proposal_type_info(opt_proposal_type);
 
         assert!(new_duration                        == option::destroy_some(opt_duration)                       , 100);
         assert!(new_success_vote_percent            == option::destroy_some(opt_success_vote_percent)           , 101);
@@ -1539,14 +1539,14 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id                         = basic_dao::get_next_proposal_id();
+        let proposal_id                         = standard_dao::get_next_proposal_id();
         let proposal_title                      = std::string::utf8(b"Test Proposal Name");
         let proposal_description                = std::string::utf8(b"Test Proposal Description");
         let proposal_type                       = std::string::utf8(b"standard");
@@ -1556,10 +1556,10 @@ module dao_generator_addr::basic_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_proposal_update_proposal(
+        standard_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1573,7 +1573,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1582,7 +1582,7 @@ module dao_generator_addr::basic_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
@@ -1592,7 +1592,7 @@ module dao_generator_addr::basic_dao_test {
             new_success_vote_percent, 
             new_min_amount_to_vote, 
             new_min_amount_to_create_proposal
-        )   = basic_dao::get_proposal_type_info(opt_proposal_type);
+        )   = standard_dao::get_proposal_type_info(opt_proposal_type);
 
         assert!(new_duration                        == option::destroy_some(opt_duration)                       , 100);
         assert!(new_success_vote_percent            == option::destroy_some(opt_success_vote_percent)           , 101);
@@ -1603,7 +1603,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE, location = standard_dao)]
     public entry fun test_proposal_execution_fails_to_remove_proposal_type_if_there_are_none_left(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1618,14 +1618,14 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id                         = basic_dao::get_next_proposal_id();
+        let proposal_id                         = standard_dao::get_next_proposal_id();
         let proposal_title                      = std::string::utf8(b"Test Proposal Name");
         let proposal_description                = std::string::utf8(b"Test Proposal Description");
         let proposal_type                       = std::string::utf8(b"standard");
@@ -1635,10 +1635,10 @@ module dao_generator_addr::basic_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_proposal_update_proposal(
+        standard_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1652,7 +1652,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1661,7 +1661,7 @@ module dao_generator_addr::basic_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
@@ -1684,14 +1684,14 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id                         = basic_dao::get_next_proposal_id();
+        let proposal_id                         = standard_dao::get_next_proposal_id();
         let proposal_title                      = std::string::utf8(b"Test Proposal Name");
         let proposal_description                = std::string::utf8(b"Test Proposal Description");
         let proposal_type                       = std::string::utf8(b"standard");
@@ -1701,10 +1701,10 @@ module dao_generator_addr::basic_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_proposal_update_proposal(
+        standard_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1718,7 +1718,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1728,12 +1728,12 @@ module dao_generator_addr::basic_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         // add a new ADVANCED proposal type
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
         // start new proposal to remove ADVANCED proposal type
-        proposal_id                         = basic_dao::get_next_proposal_id();
+        proposal_id                         = standard_dao::get_next_proposal_id();
         proposal_title                      = std::string::utf8(b"Test Proposal Name");
         proposal_description                = std::string::utf8(b"Test Proposal Description");
         proposal_type                       = std::string::utf8(b"standard");
@@ -1745,7 +1745,7 @@ module dao_generator_addr::basic_dao_test {
         opt_min_amount_to_create_proposal   = option::none();
 
         // should pass
-        basic_dao::create_proposal_update_proposal(
+        standard_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1759,7 +1759,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1769,12 +1769,12 @@ module dao_generator_addr::basic_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         // remove ADVANCED proposal type
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
         // should fail as proposal type was removed
-        let ( _, _, _, _)   = basic_dao::get_proposal_type_info(opt_proposal_type);
+        let ( _, _, _, _)   = standard_dao::get_proposal_type_info(opt_proposal_type);
 
     }
 
@@ -1794,24 +1794,24 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_dao_name            = option::some(std::string::utf8(b"New DAO Name"));
         let opt_dao_description     = option::some(std::string::utf8(b"New DAO Description"));
         let opt_dao_image_url       = option::some(std::string::utf8(b"New DAO Image URL"));
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_dao_update_proposal(
+        standard_dao::create_dao_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1822,7 +1822,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1831,7 +1831,7 @@ module dao_generator_addr::basic_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
@@ -1842,7 +1842,7 @@ module dao_generator_addr::basic_dao_test {
             dao_description,
             dao_image_url,
             _dao_governance_token_metadata
-        ) = basic_dao::get_dao_info();
+        ) = standard_dao::get_dao_info();
 
         assert!(dao_name        == option::destroy_some(opt_dao_name)         , 100);
         assert!(dao_description == option::destroy_some(opt_dao_description)  , 101);
@@ -1866,24 +1866,24 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_dao_name            = option::some(std::string::utf8(b"New DAO Name"));
         let opt_dao_description     = option::none();
         let opt_dao_image_url       = option::none();
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_dao_update_proposal(
+        standard_dao::create_dao_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1894,7 +1894,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1910,9 +1910,9 @@ module dao_generator_addr::basic_dao_test {
             initial_dao_description,
             initial_dao_image_url,
             _dao_governance_token_metadata
-        ) = basic_dao::get_dao_info();
+        ) = standard_dao::get_dao_info();
 
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
@@ -1923,7 +1923,7 @@ module dao_generator_addr::basic_dao_test {
             dao_description,
             dao_image_url,
             _dao_governance_token_metadata
-        ) = basic_dao::get_dao_info();
+        ) = standard_dao::get_dao_info();
 
         assert!(dao_name        == option::destroy_some(opt_dao_name)   , 100);
         assert!(dao_description == initial_dao_description              , 101);
@@ -1947,32 +1947,32 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // deposit some gov tokens to dao
         let deposit_amount          = 300_000_000;
-        basic_dao::deposit_fa_to_dao(
+        standard_dao::deposit_fa_to_dao(
             creator,
             deposit_amount,
             gov_token_metadata
         );
 
         // should pass
-        basic_dao::create_fa_transfer_proposal(
+        standard_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1983,7 +1983,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -1995,7 +1995,7 @@ module dao_generator_addr::basic_dao_test {
         // get member one balance before proposal execution
         let member_gov_token_balance_before = primary_fungible_store::balance(signer::address_of(member_one), gov_token_metadata);
 
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
@@ -2023,24 +2023,24 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_fa_transfer_proposal(
+        standard_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2051,7 +2051,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2063,7 +2063,7 @@ module dao_generator_addr::basic_dao_test {
         // get member one balance before proposal execution
         let member_gov_token_balance_before = primary_fungible_store::balance(signer::address_of(member_one), gov_token_metadata);
 
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
 
@@ -2077,7 +2077,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = standard_dao)]
     public entry fun test_proposal_to_transfer_fungible_assets_should_fail_if_called_by_wrong_execute_proposal_function(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2092,24 +2092,24 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        basic_dao::create_fa_transfer_proposal(
+        standard_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2120,7 +2120,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2129,7 +2129,7 @@ module dao_generator_addr::basic_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        basic_dao::execute_coin_transfer_proposal<AptosCoin>(
+        standard_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
     }
@@ -2150,31 +2150,31 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        basic_dao::deposit_coin_to_dao<AptosCoin>(
+        standard_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        basic_dao::create_coin_transfer_proposal(
+        standard_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2185,7 +2185,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2198,7 +2198,7 @@ module dao_generator_addr::basic_dao_test {
         let member_coin_balance_before = coin::balance<AptosCoin>(signer::address_of(member_one));
 
         // should pass
-        basic_dao::execute_coin_transfer_proposal<AptosCoin>(
+        standard_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
 
@@ -2225,7 +2225,7 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint moon coins to member
@@ -2242,7 +2242,7 @@ module dao_generator_addr::basic_dao_test {
         
         // deposit some coins to dao
         let deposit_amount = 300_000_000;
-        basic_dao::deposit_coin_to_dao<MoonCoin>(
+        standard_dao::deposit_coin_to_dao<MoonCoin>(
             member_one,
             deposit_amount
         );
@@ -2264,31 +2264,31 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        basic_dao::deposit_coin_to_dao<AptosCoin>(
+        standard_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        basic_dao::create_coin_transfer_proposal(
+        standard_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2305,7 +2305,7 @@ module dao_generator_addr::basic_dao_test {
         let member_coin_balance_before = coin::balance<AptosCoin>(signer::address_of(member_one));
 
         // should pass
-        basic_dao::execute_coin_transfer_proposal<AptosCoin>(
+        standard_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
 
@@ -2318,7 +2318,7 @@ module dao_generator_addr::basic_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = standard_dao)]
     public entry fun test_proposal_to_transfer_coins_should_fail_if_called_by_wrong_execute_proposal_function(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2333,31 +2333,31 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        basic_dao::deposit_coin_to_dao<AptosCoin>(
+        standard_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        basic_dao::create_coin_transfer_proposal(
+        standard_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2368,7 +2368,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2378,13 +2378,13 @@ module dao_generator_addr::basic_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         // should fail
-        basic_dao::execute_proposal(
+        standard_dao::execute_proposal(
             proposal_id
         );
     }
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_MISMATCH_COIN_STRUCT_NAME, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_MISMATCH_COIN_STRUCT_NAME, location = standard_dao)]
     public entry fun test_proposal_to_transfer_coins_should_fail_if_given_wrong_coin_struct_name(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2399,31 +2399,31 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoinWrong";
-        let ( duration, _, _, _)    = basic_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        basic_dao::deposit_coin_to_dao<AptosCoin>(
+        standard_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        basic_dao::create_coin_transfer_proposal(
+        standard_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2434,7 +2434,7 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2444,14 +2444,14 @@ module dao_generator_addr::basic_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         // should fail
-        basic_dao::execute_coin_transfer_proposal<AptosCoin>(
+        standard_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = basic_dao)]
+    #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = standard_dao)]
     public entry fun test_execute_coin_transfer_proposal_should_fail_if_proposal_voting_has_not_ended(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2466,14 +2466,14 @@ module dao_generator_addr::basic_dao_test {
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        basic_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = basic_dao::get_next_proposal_id();
+        let proposal_id             = standard_dao::get_next_proposal_id();
         let proposal_title          = std::string::utf8(b"Test Proposal Name");
         let proposal_description    = std::string::utf8(b"Test Proposal Description");
         let proposal_type           = std::string::utf8(b"standard");
@@ -2483,13 +2483,13 @@ module dao_generator_addr::basic_dao_test {
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        basic_dao::deposit_coin_to_dao<AptosCoin>(
+        standard_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        basic_dao::create_coin_transfer_proposal(
+        standard_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2500,14 +2500,14 @@ module dao_generator_addr::basic_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        basic_dao::vote_for_proposal(
+        standard_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
         // should fail
-        basic_dao::execute_coin_transfer_proposal<AptosCoin>(
+        standard_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
     }
