@@ -162,15 +162,14 @@ module basedao_addr::standard_dao {
     const ERROR_INSUFFICIENT_GOVERNANCE_TOKENS : u64        = 5;
     const ERROR_PROPOSAL_EXPIRED : u64                      = 6;
     const ERROR_INVALID_TOKEN_METADATA: u64                 = 7;
-    const ERROR_ALREADY_VOTED: u64                          = 8;
-    const ERROR_PROPOSAL_HAS_NOT_ENDED: u64                 = 9;
-    const ERROR_INVALID_UPDATE_TYPE: u64                    = 10;
-    const ERROR_MISSING_TRANSFER_RECIPIENT: u64             = 11;
-    const ERROR_MISSING_TRANSFER_AMOUNT: u64                = 12;
-    const ERROR_MISSING_TRANSFER_METADATA: u64              = 13;
-    const ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE: u64 = 14;
-    const ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED: u64 = 15;
-    const ERROR_MISMATCH_COIN_STRUCT_NAME: u64              = 16;
+    const ERROR_PROPOSAL_HAS_NOT_ENDED: u64                 = 8;
+    const ERROR_INVALID_UPDATE_TYPE: u64                    = 9;
+    const ERROR_MISSING_TRANSFER_RECIPIENT: u64             = 10;
+    const ERROR_MISSING_TRANSFER_AMOUNT: u64                = 11;
+    const ERROR_MISSING_TRANSFER_METADATA: u64              = 12;
+    const ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE: u64 = 13;
+    const ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED: u64 = 14;
+    const ERROR_MISMATCH_COIN_STRUCT_NAME: u64              = 15;
 
     // -----------------------------------
     // Constants
@@ -835,18 +834,35 @@ module basedao_addr::standard_dao {
         let current_time   = aptos_framework::timestamp::now_seconds();
         assert!(current_time < proposal.end_timestamp, ERROR_PROPOSAL_EXPIRED);
 
+        // allow users to change their votes
         if (smart_table::contains(&proposal.voters, voter_addr)) {
-            abort ERROR_ALREADY_VOTED
-        } else {
-            // Record the vote
-            let vote_count = VoteCount {
-                vote_type,
-                vote_count: voter_balance,
+
+            let previous_vote = smart_table::borrow(&proposal.voters, voter_addr);
+
+            if (previous_vote.vote_type == 1) {
+                proposal.votes_yay = proposal.votes_yay - previous_vote.vote_count;
+            };
+            
+            if (previous_vote.vote_type == 0) {
+                proposal.votes_nay = proposal.votes_nay - previous_vote.vote_count;
+            };
+            
+            if (previous_vote.vote_type == 2) {
+                proposal.votes_pass = proposal.votes_pass - previous_vote.vote_count;
             };
 
-            // Add the voter and their vote to the voters' table
-            smart_table::add(&mut proposal.voters, voter_addr, vote_count);
+            proposal.total_votes = proposal.total_votes - previous_vote.vote_count;
+
         };
+
+        // Record the vote
+        let vote_count = VoteCount {
+            vote_type,
+            vote_count: voter_balance,
+        };
+
+        // Add or update the voter and their vote to the voters' table
+        smart_table::upsert(&mut proposal.voters, voter_addr, vote_count);
         
         // Update the proposal votes based on the vote type
         if (vote_type == 1) {

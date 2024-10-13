@@ -31,15 +31,14 @@ module basedao_addr::standard_dao_test {
     const ERROR_INSUFFICIENT_GOVERNANCE_TOKENS : u64        = 5;
     const ERROR_PROPOSAL_EXPIRED : u64                      = 6;
     const ERROR_INVALID_TOKEN_METADATA: u64                 = 7;
-    const ERROR_ALREADY_VOTED: u64                          = 8;
-    const ERROR_PROPOSAL_HAS_NOT_ENDED: u64                 = 9;
-    const ERROR_INVALID_UPDATE_TYPE: u64                    = 10;
-    const ERROR_MISSING_TRANSFER_RECIPIENT: u64             = 11;
-    const ERROR_MISSING_TRANSFER_AMOUNT: u64                = 12;
-    const ERROR_MISSING_TRANSFER_METADATA: u64              = 13;
-    const ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE: u64 = 14;
-    const ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED: u64 = 15;
-    const ERROR_MISMATCH_COIN_STRUCT_NAME: u64              = 16;
+    const ERROR_PROPOSAL_HAS_NOT_ENDED: u64                 = 8;
+    const ERROR_INVALID_UPDATE_TYPE: u64                    = 9;
+    const ERROR_MISSING_TRANSFER_RECIPIENT: u64             = 10;
+    const ERROR_MISSING_TRANSFER_AMOUNT: u64                = 11;
+    const ERROR_MISSING_TRANSFER_METADATA: u64              = 12;
+    const ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE: u64 = 13;
+    const ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED: u64 = 14;
+    const ERROR_MISMATCH_COIN_STRUCT_NAME: u64              = 15;
 
     // -----------------------------------
     // Constants
@@ -1119,8 +1118,7 @@ module basedao_addr::standard_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_ALREADY_VOTED, location = standard_dao)]
-    public entry fun test_user_cannot_vote_twice_for_proposal(
+    public entry fun test_user_can_change_vote_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -1160,6 +1158,111 @@ module basedao_addr::standard_dao_test {
             vote_type
         );
 
+        // verify that votes was added propoerly
+        let (
+            _view_proposal_type,
+            _view_proposal_sub_type,
+            _view_title,
+            _view_description,
+
+            view_votes_yay,
+            view_votes_pass,
+            view_votes_nay,
+            view_total_votes,
+            _view_success_vote_percent,
+
+            _view_duration,
+            _view_start_timestamp,
+            _view_end_timestamp,
+            
+            _view_result,
+            _view_executed
+        ) = standard_dao::get_proposal_info(proposal_id);
+
+        assert!(view_votes_yay              == mint_amount        , 101);
+        assert!(view_votes_pass             == 0                  , 102);
+        assert!(view_votes_nay              == 0                  , 103);
+        assert!(view_total_votes            == mint_amount        , 104);
+
+        vote_type = 0; // change vote to NAY
+        standard_dao::vote_for_proposal(
+            creator,
+            proposal_id,
+            vote_type
+        );
+
+        // verify that votes was changed propoerly
+        let (
+            _view_proposal_type,
+            _view_proposal_sub_type,
+            _view_title,
+            _view_description,
+
+            view_votes_yay,
+            view_votes_pass,
+            view_votes_nay,
+            view_total_votes,
+            _view_success_vote_percent,
+
+            _view_duration,
+            _view_start_timestamp,
+            _view_end_timestamp,
+            
+            _view_result,
+            _view_executed
+        ) = standard_dao::get_proposal_info(proposal_id);
+
+        assert!(view_votes_yay              == 0                  , 105);
+        assert!(view_votes_pass             == 0                  , 106);
+        assert!(view_votes_nay              == mint_amount        , 107);
+        assert!(view_total_votes            == mint_amount        , 108);
+
+        // test with new gov token balance
+        // mint more gov tokens to creator
+        let new_mint_amount = 3333_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), new_mint_amount);
+
+        vote_type = 2; // change vote to PASS
+        standard_dao::vote_for_proposal(
+            creator,
+            proposal_id,
+            vote_type
+        );
+
+        // verify that votes was changed propoerly
+        let (
+            _view_proposal_type,
+            _view_proposal_sub_type,
+            _view_title,
+            _view_description,
+
+            view_votes_yay,
+            view_votes_pass,
+            view_votes_nay,
+            view_total_votes,
+            _view_success_vote_percent,
+
+            _view_duration,
+            _view_start_timestamp,
+            _view_end_timestamp,
+            
+            _view_result,
+            _view_executed
+        ) = standard_dao::get_proposal_info(proposal_id);
+
+        assert!(view_votes_yay              == 0                                , 109);
+        assert!(view_votes_pass             == mint_amount + new_mint_amount    , 110);
+        assert!(view_votes_nay              == 0                                , 111);
+        assert!(view_total_votes            == mint_amount + new_mint_amount    , 112);
+
+        vote_type = 2; // no change to vote 
+        standard_dao::vote_for_proposal(
+            creator,
+            proposal_id,
+            vote_type
+        );
+
+        vote_type = 1; // change vote to YAY
         standard_dao::vote_for_proposal(
             creator,
             proposal_id,

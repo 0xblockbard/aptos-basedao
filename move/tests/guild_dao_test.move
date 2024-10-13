@@ -31,18 +31,17 @@ module basedao_addr::guild_dao_test {
     const ERROR_INSUFFICIENT_GOVERNANCE_TOKENS : u64        = 5;
     const ERROR_PROPOSAL_EXPIRED : u64                      = 6;
     const ERROR_INVALID_TOKEN_METADATA: u64                 = 7;
-    const ERROR_ALREADY_VOTED: u64                          = 8;
-    const ERROR_PROPOSAL_HAS_NOT_ENDED: u64                 = 9;
-    const ERROR_INVALID_UPDATE_TYPE: u64                    = 10;
-    const ERROR_MISSING_TRANSFER_RECIPIENT: u64             = 11;
-    const ERROR_MISSING_TRANSFER_AMOUNT: u64                = 12;
-    const ERROR_MISSING_TRANSFER_METADATA: u64              = 13;
-    const ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE: u64 = 14;
-    const ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED: u64 = 15;
-    const ERROR_MISMATCH_COIN_STRUCT_NAME: u64              = 16;
-    const ERROR_NOT_GUILD_MEMBER: u64                       = 17;
-    const ERROR_INSUFFICIENT_ROLE_PERMISSION: u64           = 18;
-    const ERROR_INVALID_ROLE: u64                           = 19;
+    const ERROR_PROPOSAL_HAS_NOT_ENDED: u64                 = 8;
+    const ERROR_INVALID_UPDATE_TYPE: u64                    = 9;
+    const ERROR_MISSING_TRANSFER_RECIPIENT: u64             = 10;
+    const ERROR_MISSING_TRANSFER_AMOUNT: u64                = 11;
+    const ERROR_MISSING_TRANSFER_METADATA: u64              = 12;
+    const ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE: u64 = 13;
+    const ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED: u64 = 14;
+    const ERROR_MISMATCH_COIN_STRUCT_NAME: u64              = 15;
+    const ERROR_NOT_GUILD_MEMBER: u64                       = 16;
+    const ERROR_INSUFFICIENT_ROLE_PERMISSION: u64           = 17;
+    const ERROR_INVALID_ROLE: u64                           = 18;
 
     // -----------------------------------
     // Constants
@@ -1904,8 +1903,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_ALREADY_VOTED, location = guild_dao)]
-    public entry fun test_user_cannot_vote_twice_for_proposal(
+    public entry fun test_user_can_change_vote_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -1921,9 +1919,10 @@ module basedao_addr::guild_dao_test {
         guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator);
 
-        // mint gov tokens to creator
-        let mint_amount = 1000_000_000;
-        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        // add members to guild
+        let default_new_member_role     = string::utf8(b"recruit");
+        let recruit_vote_weight         = 100;
+        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         let proposal_id            = guild_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
@@ -1939,13 +1938,118 @@ module basedao_addr::guild_dao_test {
 
         let vote_type = 1; // vote YAY
         guild_dao::vote_for_proposal(
-            creator,
+            member_one,
             proposal_id,
             vote_type
         );
 
+        // verify that votes was added propoerly
+        let (
+            _view_proposal_type,
+            _view_proposal_sub_type,
+            _view_title,
+            _view_description,
+
+            view_votes_yay,
+            view_votes_pass,
+            view_votes_nay,
+            view_total_votes,
+            _view_success_vote_percent,
+
+            _view_duration,
+            _view_start_timestamp,
+            _view_end_timestamp,
+            
+            _view_result,
+            _view_executed
+        ) = guild_dao::get_proposal_info(proposal_id);
+
+        assert!(view_votes_yay              == recruit_vote_weight  , 101);
+        assert!(view_votes_pass             == 0                    , 102);
+        assert!(view_votes_nay              == 0                    , 103);
+        assert!(view_total_votes            == recruit_vote_weight  , 104);
+
+        vote_type = 0; // change vote to NAY
         guild_dao::vote_for_proposal(
-            creator,
+            member_one,
+            proposal_id,
+            vote_type
+        );
+
+        // verify that votes was changed propoerly
+        let (
+            _view_proposal_type,
+            _view_proposal_sub_type,
+            _view_title,
+            _view_description,
+
+            view_votes_yay,
+            view_votes_pass,
+            view_votes_nay,
+            view_total_votes,
+            _view_success_vote_percent,
+
+            _view_duration,
+            _view_start_timestamp,
+            _view_end_timestamp,
+            
+            _view_result,
+            _view_executed
+        ) = guild_dao::get_proposal_info(proposal_id);
+
+        assert!(view_votes_yay              == 0                     , 105);
+        assert!(view_votes_pass             == 0                     , 106);
+        assert!(view_votes_nay              == recruit_vote_weight   , 107);
+        assert!(view_total_votes            == recruit_vote_weight   , 108);
+
+        // test with member role change from recruit to executive
+        let new_member_role         = string::utf8(b"executive");
+        let executive_vote_weight   = 800;
+        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+
+        vote_type = 2; // change vote to PASS
+        guild_dao::vote_for_proposal(
+            member_one,
+            proposal_id,
+            vote_type
+        );
+
+        // verify that votes was changed propoerly
+        let (
+            _view_proposal_type,
+            _view_proposal_sub_type,
+            _view_title,
+            _view_description,
+
+            view_votes_yay,
+            view_votes_pass,
+            view_votes_nay,
+            view_total_votes,
+            _view_success_vote_percent,
+
+            _view_duration,
+            _view_start_timestamp,
+            _view_end_timestamp,
+            
+            _view_result,
+            _view_executed
+        ) = guild_dao::get_proposal_info(proposal_id);
+
+        assert!(view_votes_yay              == 0                        , 109);
+        assert!(view_votes_pass             == executive_vote_weight    , 110);
+        assert!(view_votes_nay              == 0                        , 111);
+        assert!(view_total_votes            == executive_vote_weight    , 112);
+
+        vote_type = 2; // no change to vote 
+        guild_dao::vote_for_proposal(
+            member_one,
+            proposal_id,
+            vote_type
+        );
+
+        vote_type = 1; // change vote to YAY
+        guild_dao::vote_for_proposal(
+            member_one,
             proposal_id,
             vote_type
         );
