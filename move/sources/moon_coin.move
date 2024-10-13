@@ -1,5 +1,5 @@
 // basic coin module for testing purposes
-module dao_generator_addr::moon_coin {
+module basedao_addr::moon_coin {
 
     struct MoonCoin {}
 
@@ -105,7 +105,7 @@ module dao_generator_addr::moon_coin {
     #[test_only]
     use std::option;
 
-    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @dao_generator_addr)]
+    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @basedao_addr)]
     public entry fun test_end_to_end(
         source: signer,
         destination: signer,
@@ -152,7 +152,7 @@ module dao_generator_addr::moon_coin {
         assert!(option::extract(&mut new_supply) == 20, 2);
     }
 
-    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @dao_generator_addr)]
+    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @basedao_addr)]
     #[expected_failure(abort_code = 0x60001, location = Self)]
     public entry fun fail_mint(
         source: signer,
@@ -173,7 +173,7 @@ module dao_generator_addr::moon_coin {
         mint<MoonCoin>(&destination, source_addr, 100);
     }
 
-    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @dao_generator_addr)]
+    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @basedao_addr)]
     #[expected_failure(abort_code = 0x60001, location = Self)]
     public entry fun fail_burn(
         source: signer,

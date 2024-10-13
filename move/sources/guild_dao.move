@@ -1,8 +1,8 @@
-module dao_generator_addr::guild_dao {
+module basedao_addr::guild_dao {
 
     use std::event;
     use std::signer;
-    use std::string::{String};
+    use std::string::{Self, String};
     use std::option::{Self, Option};
 
     use aptos_std::type_info;
@@ -30,9 +30,19 @@ module dao_generator_addr::guild_dao {
         name: String,
         description: String,
         image_url: String,
+        dao_type: String,
 
-        roles: SmartTable<String, u64>,         // role_name, multiplier (vote weight)
+        min_executive_vote_weight: u64,         // min amount of vote weight required for executive actions
+        min_leader_vote_weight: u64,            // min amount of vote weight required for leader actions
+
+        roles: SmartTable<String, u64>,         // role_name, vote weight
         members: SmartTable<address, String>,   // member address, role
+
+        // for easier retrieval of smart table entries on the frontend - to optimize in future
+        role_count: u64,                        // Counter for roles
+        role_index: SmartTable<u64, String>,    // Index map: role_id -> role_name
+        member_count: u64,                      // Counter for members
+        member_index: SmartTable<u64, address>  // Index map: member_id -> address
     }
 
     /// DaoSigner Struct
@@ -173,13 +183,14 @@ module dao_generator_addr::guild_dao {
     const ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED: u64 = 15;
     const ERROR_MISMATCH_COIN_STRUCT_NAME: u64              = 16;
     const ERROR_NOT_GUILD_MEMBER: u64                       = 17;
-    const ERROR_INSUFFICIENT_GUILD_PERMISSION: u64          = 18;
+    const ERROR_INSUFFICIENT_ROLE_PERMISSION: u64           = 18;
+    const ERROR_INVALID_ROLE: u64                           = 19;
 
     // -----------------------------------
     // Constants
     // -----------------------------------
 
-    const CREATION_FEE: u64                                 = 0;     
+    const CREATION_FEE: u64                                 = 1;     
     const FEE_RECEIVER: address                             = @fee_receiver_addr;
 
     // -----------------------------------
@@ -211,7 +222,7 @@ module dao_generator_addr::guild_dao {
 
         // init ProposalTypesTable struct with default proposal types
         let proposal_type_table = smart_table::new<String, ProposalType>();
-        smart_table::add(&mut proposal_type_table, std::string::utf8(b"standard"), ProposalType {
+        smart_table::add(&mut proposal_type_table, string::utf8(b"standard"), ProposalType {
             duration: 100_000_000,
             min_amount_to_vote: 100,
             min_amount_to_create_proposal: 100,
@@ -247,14 +258,19 @@ module dao_generator_addr::guild_dao {
 
         // init RolesTable struct with default role types
         let role_table = smart_table::new<String, u64>();
-        smart_table::add(&mut role_table, std::string::utf8(b"recruit")   , 100);
-        smart_table::add(&mut role_table, std::string::utf8(b"novice")    , 200);
-        smart_table::add(&mut role_table, std::string::utf8(b"squire")    , 300);
-        smart_table::add(&mut role_table, std::string::utf8(b"acolyte")   , 400);
-        smart_table::add(&mut role_table, std::string::utf8(b"knight")    , 500);
-        smart_table::add(&mut role_table, std::string::utf8(b"champion")  , 600);
-        smart_table::add(&mut role_table, std::string::utf8(b"elder")     , 700);
-        smart_table::add(&mut role_table, std::string::utf8(b"executive") , 800);
+        smart_table::add(&mut role_table, string::utf8(b"recruit")   , 100);
+        smart_table::add(&mut role_table, string::utf8(b"novice")    , 200);
+        smart_table::add(&mut role_table, string::utf8(b"squire")    , 300);
+        smart_table::add(&mut role_table, string::utf8(b"acolyte")   , 400);
+        smart_table::add(&mut role_table, string::utf8(b"knight")    , 500);
+        smart_table::add(&mut role_table, string::utf8(b"champion")  , 600);
+        smart_table::add(&mut role_table, string::utf8(b"elder")     , 700);
+        smart_table::add(&mut role_table, string::utf8(b"executive") , 800);
+        smart_table::add(&mut role_table, string::utf8(b"leader")    , 900);
+
+        // set creator with the leader role
+        let members = smart_table::new<address, String>();
+        smart_table::add(&mut members, signer::address_of(creator)   , string::utf8(b"leader"));
 
         // set dao struct
         move_to(&dao_signer, Dao {
@@ -262,12 +278,302 @@ module dao_generator_addr::guild_dao {
             name: dao_name,
             description: dao_description,
             image_url: dao_image_url,
+            dao_type: string::utf8(b"guild"),
+
+            min_executive_vote_weight: 700,
+            min_leader_vote_weight: 900,
 
             roles: role_table,
-            members: smart_table::new<address, String>()
+            members: members,
 
+            role_count: 9,
+            role_index: smart_table::new<u64, String>(),
+            member_count: 1,
+            member_index: smart_table::new<u64, address>()
         });
 
+    }
+
+    // -----------------------------------
+    // Leader Functions
+    // -----------------------------------
+
+    public entry fun update_executive_vote_weight(
+        leader: &signer,
+        weight: u64
+    ) acquires Dao {
+        
+        let dao_addr    = get_dao_addr();
+        let dao         = borrow_global_mut<Dao>(dao_addr);
+        let leader_addr = signer::address_of(leader);
+
+        // verify leader is a guild member
+        assert!(smart_table::contains(&dao.members, leader_addr), ERROR_NOT_GUILD_MEMBER);
+
+        // get leader role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, leader_addr);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
+        // verify sufficient role vote weight to access leader entrypoints
+        assert!(vote_weight >= dao.min_leader_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // update dao min_executive_vote_weight
+        dao.min_executive_vote_weight = weight;
+    }
+
+
+    public entry fun update_leader_vote_weight(
+        leader: &signer,
+        weight: u64
+    ) acquires Dao {
+        
+        let dao_addr    = get_dao_addr();
+        let dao         = borrow_global_mut<Dao>(dao_addr);
+        let leader_addr = signer::address_of(leader);
+
+        // verify leader is a guild member
+        assert!(smart_table::contains(&dao.members, leader_addr), ERROR_NOT_GUILD_MEMBER);
+
+        // get leader role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, leader_addr);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
+        // verify sufficient role vote weight to access leader entrypoints
+        assert!(vote_weight >= dao.min_leader_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // update dao min_leader_vote_weight
+        dao.min_leader_vote_weight = weight;
+        
+    }
+
+
+    public entry fun add_or_update_proposal_types(
+        leader: &signer,
+        proposal_type_name: String,
+        duration: u64,
+        min_amount_to_vote: u64,
+        min_amount_to_create_proposal: u64,
+        min_amount_to_execute_proposal: u64
+    ) acquires Dao, ProposalTypeTable {
+        
+        let dao_addr            = get_dao_addr();
+        let dao                 = borrow_global_mut<Dao>(dao_addr);
+        let proposal_type_table = borrow_global_mut<ProposalTypeTable>(dao_addr);
+        let leader_addr         = signer::address_of(leader);
+
+        // verify leader is a guild member
+        assert!(smart_table::contains(&dao.members, leader_addr), ERROR_NOT_GUILD_MEMBER);
+
+        // get leader role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, leader_addr);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
+        // verify sufficient role vote weight to access leader entrypoints
+        assert!(vote_weight >= dao.min_leader_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // add or update proposal type
+        let new_proposal_type = ProposalType {
+            duration,
+            min_amount_to_vote,
+            min_amount_to_create_proposal,
+            min_amount_to_execute_proposal
+        };
+
+        smart_table::upsert(
+            &mut proposal_type_table.proposal_types, 
+            proposal_type_name, 
+            new_proposal_type
+        );
+        
+    }
+
+
+    public entry fun remove_proposal_types(
+        leader: &signer,
+        proposal_type_name: String
+    ) acquires Dao, ProposalTypeTable {
+
+        let dao_addr            = get_dao_addr();
+        let dao                 = borrow_global_mut<Dao>(dao_addr);
+        let proposal_type_table = borrow_global_mut<ProposalTypeTable>(dao_addr);
+        let leader_addr         = signer::address_of(leader);
+
+        // verify leader is a guild member
+        assert!(smart_table::contains(&dao.members, leader_addr), ERROR_NOT_GUILD_MEMBER);
+
+        // get leader role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, leader_addr);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
+        // verify sufficient role vote weight to access leader entrypoints
+        assert!(vote_weight >= dao.min_leader_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // remove proposal type
+        smart_table::remove(&mut proposal_type_table.proposal_types, proposal_type_name);
+        
+    }
+
+    // -----------------------------------
+    // Executive Functions
+    // -----------------------------------
+
+    public entry fun add_or_update_role(
+        executive: &signer,
+        role: String,
+        weight: u64
+    ) acquires Dao {
+
+        let dao_addr            = get_dao_addr();
+        let dao                 = borrow_global_mut<Dao>(dao_addr);
+        let executive_addr      = signer::address_of(executive);
+
+        // verify executive is a guild member
+        assert!(smart_table::contains(&dao.members, executive_addr), ERROR_NOT_GUILD_MEMBER);
+
+        // get member's role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, executive_addr);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
+        // verify sufficient role vote weight to access executive entrypoints
+        assert!(vote_weight > dao.min_executive_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // verify member cannot add a role with weight above his current role
+        assert!(vote_weight > weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // update dao role count if we add new role
+        if (!smart_table::contains(&dao.roles, role)) {
+            // role does not exist
+            dao.role_count = dao.role_count + 1;
+        } else {
+
+            // role exists
+            let current_role_vote_weight = *smart_table::borrow(&dao.roles, role);
+
+            // verify member cannot update a role with weight at or above his current role
+            assert!(vote_weight > current_role_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        };
+        
+        // add or update new role
+        smart_table::upsert(
+            &mut dao.roles, 
+            role, 
+            weight
+        );
+
+    }
+
+
+    public entry fun remove_role(
+        executive: &signer,
+        role: String
+    ) acquires Dao {
+        
+        let dao_addr            = get_dao_addr();
+        let dao                 = borrow_global_mut<Dao>(dao_addr);
+        let executive_addr      = signer::address_of(executive);
+
+        // verify executive is a guild member
+        assert!(smart_table::contains(&dao.members, executive_addr), ERROR_NOT_GUILD_MEMBER);
+
+        // get member's role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, executive_addr);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
+        // verify sufficient role vote weight to access executive entrypoints
+        assert!(vote_weight > dao.min_executive_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // verify member cannot remove a role with weight at or above his current role
+        let current_role_vote_weight = *smart_table::borrow(&dao.roles, role);
+        assert!(vote_weight > current_role_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // remove role
+        smart_table::remove(&mut dao.roles, role);      
+
+        // update dao role count
+        // dao.role_count = dao.role_count - 1;  
+    }
+
+
+    public entry fun add_or_update_member(
+        executive: &signer,
+        member: address,
+        role: String
+    ) acquires Dao {
+        
+        let dao_addr            = get_dao_addr();
+        let dao                 = borrow_global_mut<Dao>(dao_addr);
+        let executive_addr      = signer::address_of(executive);
+
+        // verify executive is a guild member
+        assert!(smart_table::contains(&dao.members, executive_addr), ERROR_NOT_GUILD_MEMBER);
+
+        // get member's role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, executive_addr);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
+        // verify sufficient role vote weight to access executive entrypoints
+        assert!(vote_weight >= dao.min_executive_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // verify role to be added is valid
+        assert!(smart_table::contains(&dao.roles, role), ERROR_INVALID_ROLE);
+
+        // get new role vote weight
+        let new_member_vote_weight  = *smart_table::borrow(&dao.roles, role);
+
+        // verify executives can only add member roles of lower or equal vote weight than themselves
+        // e.g. leaders can add other leaders, executives, and normal members
+        // e.g. executives can add other normal members only (tiers below executive)
+        assert!(vote_weight > new_member_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // update dao member count if we add new member
+        if (!smart_table::contains(&dao.members, member)) {
+            dao.member_count = dao.member_count + 1;
+        };
+
+        // add or update new member
+        smart_table::upsert(
+            &mut dao.members, 
+            member, 
+            role
+        );
+        
+    }
+
+
+    public entry fun remove_member(
+        executive: &signer,
+        member: address
+    ) acquires Dao {
+        
+        let dao_addr            = get_dao_addr();
+        let dao                 = borrow_global_mut<Dao>(dao_addr);
+        let executive_addr      = signer::address_of(executive);
+
+        // verify executive is a guild member
+        assert!(smart_table::contains(&dao.members, executive_addr), ERROR_NOT_GUILD_MEMBER);
+
+        // get executive member's role and vote weight
+        let role_name       = *smart_table::borrow(&dao.members, executive_addr);
+        let vote_weight     = *smart_table::borrow(&dao.roles, role_name);
+
+        // verify sufficient role vote weight to access executive entrypoints
+        assert!(vote_weight >= dao.min_executive_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // get member to be removed role and vote weight
+        let removed_member_role_name    = *smart_table::borrow(&dao.members, member);
+        let removed_member_vote_weight  = *smart_table::borrow(&dao.roles, removed_member_role_name);
+
+        // verify executive can only remove members of lower or equal vote weight than themselves
+        // e.g. leaders can remove other leaders, executives, and normal members
+        // e.g. executives can remove other normal members only (tiers below executive)
+        assert!(vote_weight >= removed_member_vote_weight, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
+        // remove member
+        smart_table::remove(&mut dao.members, member);   
+
+        // update dao member count
+        // dao.member_count = dao.member_count - 1;
     }
 
     // -----------------------------------
@@ -333,23 +639,23 @@ module dao_generator_addr::guild_dao {
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
 
+        // get proposal type
+        let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
+
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
         // check if creator has proposal table
         if (!exists<ProposalTable>(creator_address)) {
             move_to(creator, ProposalTable {
                 proposals: smart_table::new(),
             });
         };
-        let proposal_table    = borrow_global_mut<ProposalTable>(creator_address);
-
-        // get proposal type
-        let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
-
-        // verify sufficient role vote weight to create a proposal
-        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
+        let proposal_table      = borrow_global_mut<ProposalTable>(creator_address);
 
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
-        let proposal_sub_type   = std::string::utf8(b"fa_transfer");
+        let proposal_sub_type   = string::utf8(b"fa_transfer");
         let current_time        = aptos_framework::timestamp::now_seconds();
         let duration            = proposal_type_obj.duration;
         let end_timestamp       = current_time + duration;
@@ -371,7 +677,7 @@ module dao_generator_addr::guild_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -405,7 +711,7 @@ module dao_generator_addr::guild_dao {
             duration
         });
 
-        // Store the proposal in the DAO's proposal table
+        // Store the proposal in the creator's proposal table
         smart_table::add(&mut proposal_table.proposals, proposal_id, proposal);
 
         // update proposer registry and increment next proposal id
@@ -440,6 +746,12 @@ module dao_generator_addr::guild_dao {
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
 
+        // get proposal type
+        let proposal_type_obj   = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
+
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
         // check if creator has proposal table
         if (!exists<ProposalTable>(creator_address)) {
             move_to(creator, ProposalTable {
@@ -448,15 +760,9 @@ module dao_generator_addr::guild_dao {
         };
         let proposal_table      = borrow_global_mut<ProposalTable>(creator_address);
 
-        // get proposal type
-        let proposal_type_obj   = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
-
-        // verify sufficient role vote weight to create a proposal
-        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
-
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
-        let proposal_sub_type   = std::string::utf8(b"coin_transfer");
+        let proposal_sub_type   = string::utf8(b"coin_transfer");
         let current_time        = aptos_framework::timestamp::now_seconds();
         let duration            = proposal_type_obj.duration;
         let end_timestamp       = current_time + duration;
@@ -478,7 +784,7 @@ module dao_generator_addr::guild_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -512,7 +818,7 @@ module dao_generator_addr::guild_dao {
             duration
         });
 
-        // Store the proposal in the DAO's proposal table
+        // Store the proposal in the creator's proposal table
         smart_table::add(&mut proposal_table.proposals, proposal_id, proposal);
 
         // update proposer registry and increment next proposal id
@@ -550,6 +856,12 @@ module dao_generator_addr::guild_dao {
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
 
+        // get proposal type
+        let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
+
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
         // check if creator has proposal table
         if (!exists<ProposalTable>(creator_address)) {
             move_to(creator, ProposalTable {
@@ -558,21 +870,15 @@ module dao_generator_addr::guild_dao {
         };
         let proposal_table      = borrow_global_mut<ProposalTable>(creator_address);
 
-        // get proposal type
-        let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
-
-        // verify sufficient role vote weight to create a proposal
-        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
-
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
-        let proposal_sub_type   = std::string::utf8(b"proposal_update");
+        let proposal_sub_type   = string::utf8(b"proposal_update");
         let current_time        = aptos_framework::timestamp::now_seconds();
         let duration            = proposal_type_obj.duration;
         let end_timestamp       = current_time + duration;
 
         // validate correct update type
-        if(!(opt_update_type == std::string::utf8(b"update") || opt_update_type == std::string::utf8(b"remove"))) {
+        if(!(opt_update_type == string::utf8(b"update") || opt_update_type == string::utf8(b"remove"))) {
             abort ERROR_INVALID_UPDATE_TYPE
         };
 
@@ -593,7 +899,7 @@ module dao_generator_addr::guild_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -627,7 +933,7 @@ module dao_generator_addr::guild_dao {
             duration
         });
 
-        // Store the proposal in the DAO's proposal table
+        // Store the proposal in the creator's proposal table
         smart_table::add(&mut proposal_table.proposals, proposal_id, proposal);
         
         // update proposer registry and increment next proposal id
@@ -662,6 +968,12 @@ module dao_generator_addr::guild_dao {
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
 
+        // get proposal type
+        let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
+
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
         // check if creator has proposal table
         if (!exists<ProposalTable>(creator_address)) {
             move_to(creator, ProposalTable {
@@ -670,15 +982,9 @@ module dao_generator_addr::guild_dao {
         };
         let proposal_table      = borrow_global_mut<ProposalTable>(creator_address);
 
-        // get proposal type
-        let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
-
-        // verify sufficient role vote weight to create a proposal
-        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
-
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
-        let proposal_sub_type   = std::string::utf8(b"dao_update");
+        let proposal_sub_type   = string::utf8(b"dao_update");
         let current_time        = aptos_framework::timestamp::now_seconds();
         let duration            = proposal_type_obj.duration;
         let end_timestamp       = current_time + duration;
@@ -700,7 +1006,7 @@ module dao_generator_addr::guild_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -734,7 +1040,7 @@ module dao_generator_addr::guild_dao {
             duration
         });
 
-        // Store the proposal in the DAO's proposal table
+        // Store the proposal in the creator's proposal table
         smart_table::add(&mut proposal_table.proposals, proposal_id, proposal);
         
         // update proposer registry and increment next proposal id
@@ -766,6 +1072,12 @@ module dao_generator_addr::guild_dao {
         let proposal_type_table = borrow_global<ProposalTypeTable>(dao_addr);
         let proposal_registry   = borrow_global_mut<ProposalRegistry>(dao_addr);
 
+        // get proposal type
+        let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
+
+        // verify sufficient role vote weight to create a proposal
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_ROLE_PERMISSION);
+
         // check if creator has proposal table
         if (!exists<ProposalTable>(creator_address)) {
             move_to(creator, ProposalTable {
@@ -774,15 +1086,9 @@ module dao_generator_addr::guild_dao {
         };
         let proposal_table      = borrow_global_mut<ProposalTable>(creator_address);
 
-        // get proposal type
-        let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal_type);
-
-        // verify sufficient role vote weight to create a proposal
-        assert!(vote_weight >= proposal_type_obj.min_amount_to_create_proposal, ERROR_INSUFFICIENT_GUILD_PERMISSION);
-
         // init proposal fields
         let proposal_id       = proposal_registry.next_proposal_id;
-        let proposal_sub_type = std::string::utf8(b"standard");
+        let proposal_sub_type = string::utf8(b"standard");
         let current_time      = aptos_framework::timestamp::now_seconds();
         let duration          = proposal_type_obj.duration;
         let end_timestamp     = current_time + duration;
@@ -804,7 +1110,7 @@ module dao_generator_addr::guild_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -838,7 +1144,7 @@ module dao_generator_addr::guild_dao {
             duration
         });
 
-        // Store the proposal in the DAO's proposal table
+        // Store the proposal in the creator's proposal table
         smart_table::add(&mut proposal_table.proposals, proposal_id, proposal);
         
         // update proposer registry and increment next proposal id
@@ -880,7 +1186,7 @@ module dao_generator_addr::guild_dao {
         let proposal_type_obj = smart_table::borrow(&proposal_type_table.proposal_types, proposal.proposal_type);
 
         // verify sufficient role vote weight to vote for proposal
-        assert!(vote_weight >= proposal_type_obj.min_amount_to_vote, ERROR_INSUFFICIENT_GUILD_PERMISSION);
+        assert!(vote_weight >= proposal_type_obj.min_amount_to_vote, ERROR_INSUFFICIENT_ROLE_PERMISSION);
 
         // Ensure the proposal is still active and within the voting period
         let current_time   = aptos_framework::timestamp::now_seconds();
@@ -954,7 +1260,7 @@ module dao_generator_addr::guild_dao {
         if (proposal.votes_yay >= proposal.min_amount_to_execute_proposal) {
             
             // Proposal passed
-            if (proposal.proposal_sub_type == std::string::utf8(b"fa_transfer")) {
+            if (proposal.proposal_sub_type == string::utf8(b"fa_transfer")) {
                 
                 let transfer_recipient: address          = option::destroy_some(proposal.opt_transfer_recipient);
                 let transfer_amount: u64                 = option::destroy_some(proposal.opt_transfer_amount);
@@ -969,18 +1275,18 @@ module dao_generator_addr::guild_dao {
 
             };
 
-            if (proposal.proposal_sub_type == std::string::utf8(b"coin_transfer")) {
+            if (proposal.proposal_sub_type == string::utf8(b"coin_transfer")) {
                 abort ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED
             };
             
-            if (proposal.proposal_sub_type == std::string::utf8(b"proposal_update")) {
+            if (proposal.proposal_sub_type == string::utf8(b"proposal_update")) {
 
                 // Handle proposal type updates
                 let update_type: String        = option::destroy_some(proposal.opt_update_type);
                 let proposal_type_name: String = option::destroy_some(proposal.opt_proposal_type);
 
                 // add or update proposal type
-                if (update_type == std::string::utf8(b"update")) {
+                if (update_type == string::utf8(b"update")) {
                 
                     let duration: u64                        = option::destroy_some(proposal.opt_duration);
                     let min_amount_to_vote: u64              = option::destroy_some(proposal.opt_min_amount_to_vote);
@@ -1002,7 +1308,7 @@ module dao_generator_addr::guild_dao {
                     
                 }; 
                 
-                if (update_type == std::string::utf8(b"remove")) {
+                if (update_type == string::utf8(b"remove")) {
 
                     let proposal_type_count = smart_table::length(&proposal_type_table.proposal_types);
                     if(proposal_type_count > 1){
@@ -1015,7 +1321,7 @@ module dao_generator_addr::guild_dao {
             
             };
             
-            if (proposal.proposal_sub_type == std::string::utf8(b"dao_update")) {
+            if (proposal.proposal_sub_type == string::utf8(b"dao_update")) {
                 
                 if(option::is_some(&proposal.opt_dao_name)){
                     dao.name = option::destroy_some(proposal.opt_dao_name);
@@ -1032,12 +1338,12 @@ module dao_generator_addr::guild_dao {
             };
             
             // Mark proposal as executed
-            proposal.result   = std::string::utf8(b"SUCCESS");
+            proposal.result   = string::utf8(b"SUCCESS");
             proposal.executed = true;
 
         } else {
             // Proposal did not pass; mark as executed without action
-            proposal.result   = std::string::utf8(b"FAIL");
+            proposal.result   = string::utf8(b"FAIL");
             proposal.executed = true;
         };
 
@@ -1086,7 +1392,7 @@ module dao_generator_addr::guild_dao {
         if (proposal.votes_yay >= proposal.min_amount_to_execute_proposal) {
             
             // Proposal passed
-            if (proposal.proposal_sub_type == std::string::utf8(b"coin_transfer")) {
+            if (proposal.proposal_sub_type == string::utf8(b"coin_transfer")) {
                 
                 let transfer_recipient: address          = option::destroy_some(proposal.opt_transfer_recipient);
                 let transfer_amount: u64                 = option::destroy_some(proposal.opt_transfer_amount);
@@ -1110,12 +1416,12 @@ module dao_generator_addr::guild_dao {
             };
             
             // Mark proposal as executed
-            proposal.result   = std::string::utf8(b"SUCCESS");
+            proposal.result   = string::utf8(b"SUCCESS");
             proposal.executed = true;
 
         } else {
             // Proposal did not pass; mark as executed without action
-            proposal.result   = std::string::utf8(b"FAIL");
+            proposal.result   = string::utf8(b"FAIL");
             proposal.executed = true;
         };
 
@@ -1138,14 +1444,21 @@ module dao_generator_addr::guild_dao {
     // -----------------------------------
 
     #[view]
-    public fun get_dao_info(): (address, String, String, String, &SmartTable<String, u64>, &SmartTable<address, String>) acquires Dao {
+    public fun get_dao_info(): (address, String, String, String, String, u64, u64, u64, u64) acquires Dao {
         let dao_addr = get_dao_addr();
         let dao      = borrow_global<Dao>(dao_addr);
 
-        let roles_ref   = &dao.roles;
-        let members_ref = &dao.members;
-
-        (dao.creator, dao.name, dao.description, dao.image_url, roles_ref, members_ref)
+        (
+            dao.creator, 
+            dao.name, 
+            dao.description, 
+            dao.image_url, 
+            dao.dao_type, 
+            dao.min_executive_vote_weight, 
+            dao.min_leader_vote_weight,
+            dao.role_count,
+            dao.member_count
+        )
     }
 
 
@@ -1218,7 +1531,7 @@ module dao_generator_addr::guild_dao {
     // -----------------------------------
 
     fun get_dao_addr(): address {
-        object::create_object_address(&@dao_generator_addr, APP_OBJECT_SEED)
+        object::create_object_address(&@basedao_addr, APP_OBJECT_SEED)
     }
 
     fun get_dao_signer(dao_addr: address): signer acquires DaoSigner {

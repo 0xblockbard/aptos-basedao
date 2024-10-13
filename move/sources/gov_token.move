@@ -1,5 +1,5 @@
 // basic fungible asset governance token module
-module dao_generator_addr::gov_token {
+module basedao_addr::gov_token {
 
     use std::event;
     use std::signer;
@@ -80,7 +80,7 @@ module dao_generator_addr::gov_token {
     /* View Functions */
     #[view]
     public fun metadata_address(): address {
-        object::create_object_address(&@dao_generator_addr, ASSET_SYMBOL)
+        object::create_object_address(&@basedao_addr, ASSET_SYMBOL)
     }
 
     #[view]
@@ -90,7 +90,7 @@ module dao_generator_addr::gov_token {
 
     #[view]
     public fun token_store(): Object<FungibleStore> {
-        primary_fungible_store::ensure_primary_store_exists(@dao_generator_addr, metadata())
+        primary_fungible_store::ensure_primary_store_exists(@basedao_addr, metadata())
     }
 
     // -----------------------------------
@@ -259,7 +259,7 @@ module dao_generator_addr::gov_token {
     // -----------------------------------
 
     fun get_token_signer_addr() : address {
-        object::create_object_address(&@dao_generator_addr, ASSET_SYMBOL)
+        object::create_object_address(&@basedao_addr, ASSET_SYMBOL)
     }
 
     // -----------------------------------
@@ -271,7 +271,7 @@ module dao_generator_addr::gov_token {
         init_module(admin)
     }
 
-    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @dao_generator_addr)]
+    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @basedao_addr)]
     public entry fun test_end_to_end(
         source: signer,
         destination: signer,
@@ -297,7 +297,7 @@ module dao_generator_addr::gov_token {
         token_store();
     }
 
-    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @dao_generator_addr)]
+    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @basedao_addr)]
     #[expected_failure(abort_code = ERROR_NOT_ADMIN, location = Self)]
     public entry fun test_non_admin_cannot_mint(
         source: signer,
@@ -316,7 +316,7 @@ module dao_generator_addr::gov_token {
         mint(&source, destination_addr, 10);
     }
 
-    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @dao_generator_addr)]
+    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @basedao_addr)]
     #[expected_failure(abort_code = ERROR_NOT_ADMIN, location = Self)]
     public entry fun test_non_admin_cannot_burn(
         source: signer,
@@ -336,49 +336,23 @@ module dao_generator_addr::gov_token {
         burn(&source, destination_addr, 5);
     }
 
-    // #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @dao_generator_addr)]
-    // #[expected_failure(abort_code = 0x60001, location = Self)]
-    // public entry fun fail_mint(
-    //     source: signer,
-    //     destination: signer,
-    //     mod_account: signer,
-    // ) acquires Capabilities {
-    //     let source_addr = signer::address_of(&source);
+    #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @basedao_addr)]
+    public entry fun test_public_mint_anyone_can_mint(
+        source: signer,
+        destination: signer,
+        mod_account: signer
+    ) acquires Management {
 
-    //     aptos_framework::account::create_account_for_test(source_addr);
-    //     aptos_framework::account::create_account_for_test(signer::address_of(&destination));
-    //     aptos_framework::account::create_account_for_test(signer::address_of(&mod_account));
-    //     // aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
+        let source_addr      = signer::address_of(&source);
+        let destination_addr = signer::address_of(&destination);
+        aptos_framework::account::create_account_for_test(source_addr);
+        aptos_framework::account::create_account_for_test(destination_addr);
+        aptos_framework::account::create_account_for_test(signer::address_of(&mod_account));
 
-    //     initialize<MoonCoin>(&mod_account, b"Moon Coin", b"MOON", 1, true);
-    //     coin::register<MoonCoin>(&mod_account);
-    //     register<MoonCoin>(&source);
-    //     register<MoonCoin>(&destination);
+        setup_test(&mod_account);
 
-    //     mint<MoonCoin>(&destination, source_addr, 100);
-    // }
+        public_mint(&mod_account, 10);
+    }
 
-    // #[test(source = @0xa11ce, destination = @0xb0b, mod_account = @dao_generator_addr)]
-    // #[expected_failure(abort_code = 0x60001, location = Self)]
-    // public entry fun fail_burn(
-    //     source: signer,
-    //     destination: signer,
-    //     mod_account: signer,
-    // ) acquires Capabilities {
-    //     let source_addr = signer::address_of(&source);
-
-    //     aptos_framework::account::create_account_for_test(source_addr);
-    //     aptos_framework::account::create_account_for_test(signer::address_of(&destination));
-    //     aptos_framework::account::create_account_for_test(signer::address_of(&mod_account));
-    //     // aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
-
-    //     initialize<MoonCoin>(&mod_account, b"Moon Coin", b"MOON", 1, true);
-    //     coin::register<MoonCoin>(&mod_account);
-    //     register<MoonCoin>(&source);
-    //     register<MoonCoin>(&destination);
-
-    //     mint<MoonCoin>(&mod_account, source_addr, 100);
-    //     burn<MoonCoin>(&destination, 10);
-    // }
 
 }

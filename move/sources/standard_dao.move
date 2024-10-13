@@ -1,8 +1,8 @@
-module dao_generator_addr::standard_dao {
+module basedao_addr::standard_dao {
 
     use std::event;
     use std::signer;
-    use std::string::{String};
+    use std::string::{Self, String};
     use std::option::{Self, Option};
 
     use aptos_std::type_info;
@@ -31,6 +31,7 @@ module dao_generator_addr::standard_dao {
         description: String,
         image_url: String,
         governance_token_metadata: Object<Metadata>,
+        dao_type: String
     }
 
     /// DaoSigner Struct
@@ -175,7 +176,7 @@ module dao_generator_addr::standard_dao {
     // Constants
     // -----------------------------------
 
-    const CREATION_FEE: u64                                 = 0;     
+    const CREATION_FEE: u64                                 = 1;     
     const FEE_RECEIVER: address                             = @fee_receiver_addr;
 
     // -----------------------------------
@@ -207,7 +208,7 @@ module dao_generator_addr::standard_dao {
 
         // init ProposalTypesTable struct with default proposal types
         let proposal_type_table = smart_table::new<String, ProposalType>();
-        smart_table::add(&mut proposal_type_table, std::string::utf8(b"standard"), ProposalType {
+        smart_table::add(&mut proposal_type_table, string::utf8(b"standard"), ProposalType {
             duration: 100_000_000,
             success_vote_percent: 30,
             min_amount_to_vote: 30_000_000,
@@ -232,7 +233,7 @@ module dao_generator_addr::standard_dao {
         let dao_addr   = get_dao_addr();
         let dao_signer = get_dao_signer(dao_addr);
 
-         // process dao creation fee 
+         // process dao creation fee if exists
         if(CREATION_FEE > 0){
             // transfer fee from creator to fee receiver
             coin::transfer<AptosCoin>(creator, FEE_RECEIVER, CREATION_FEE);
@@ -248,7 +249,8 @@ module dao_generator_addr::standard_dao {
             name: dao_name,
             description: dao_description,
             image_url: dao_image_url,
-            governance_token_metadata
+            governance_token_metadata,
+            dao_type: string::utf8(b"standard")
         });
 
     }
@@ -326,7 +328,7 @@ module dao_generator_addr::standard_dao {
 
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
-        let proposal_sub_type   = std::string::utf8(b"fa_transfer");
+        let proposal_sub_type   = string::utf8(b"fa_transfer");
         let current_time        = aptos_framework::timestamp::now_seconds();
         let duration            = proposal_type_obj.duration;
         let end_timestamp       = current_time + duration;
@@ -348,7 +350,7 @@ module dao_generator_addr::standard_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -427,7 +429,7 @@ module dao_generator_addr::standard_dao {
 
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
-        let proposal_sub_type   = std::string::utf8(b"coin_transfer");
+        let proposal_sub_type   = string::utf8(b"coin_transfer");
         let current_time        = aptos_framework::timestamp::now_seconds();
         let duration            = proposal_type_obj.duration;
         let end_timestamp       = current_time + duration;
@@ -449,7 +451,7 @@ module dao_generator_addr::standard_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -531,13 +533,13 @@ module dao_generator_addr::standard_dao {
 
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
-        let proposal_sub_type   = std::string::utf8(b"proposal_update");
+        let proposal_sub_type   = string::utf8(b"proposal_update");
         let current_time        = aptos_framework::timestamp::now_seconds();
         let duration            = proposal_type_obj.duration;
         let end_timestamp       = current_time + duration;
 
         // validate correct update type
-        if(!(opt_update_type == std::string::utf8(b"update") || opt_update_type == std::string::utf8(b"remove"))) {
+        if(!(opt_update_type == string::utf8(b"update") || opt_update_type == string::utf8(b"remove"))) {
             abort ERROR_INVALID_UPDATE_TYPE
         };
 
@@ -558,7 +560,7 @@ module dao_generator_addr::standard_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -637,7 +639,7 @@ module dao_generator_addr::standard_dao {
 
         // init proposal fields
         let proposal_id         = proposal_registry.next_proposal_id;
-        let proposal_sub_type   = std::string::utf8(b"dao_update");
+        let proposal_sub_type   = string::utf8(b"dao_update");
         let current_time        = aptos_framework::timestamp::now_seconds();
         let duration            = proposal_type_obj.duration;
         let end_timestamp       = current_time + duration;
@@ -659,7 +661,7 @@ module dao_generator_addr::standard_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -735,7 +737,7 @@ module dao_generator_addr::standard_dao {
 
         // init proposal fields
         let proposal_id       = proposal_registry.next_proposal_id;
-        let proposal_sub_type = std::string::utf8(b"standard");
+        let proposal_sub_type = string::utf8(b"standard");
         let current_time      = aptos_framework::timestamp::now_seconds();
         let duration          = proposal_type_obj.duration;
         let end_timestamp     = current_time + duration;
@@ -757,7 +759,7 @@ module dao_generator_addr::standard_dao {
             end_timestamp: end_timestamp,   
             voters:  smart_table::new(),
 
-            result: std::string::utf8(b"PENDING"),
+            result: string::utf8(b"PENDING"),
             executed: false,
             
             // transfer data
@@ -906,7 +908,7 @@ module dao_generator_addr::standard_dao {
         if ((proposal.votes_yay as u128) >= required_votes) {
             
             // Proposal passed
-            if (proposal.proposal_sub_type == std::string::utf8(b"fa_transfer")) {
+            if (proposal.proposal_sub_type == string::utf8(b"fa_transfer")) {
                 
                 let transfer_recipient: address          = option::destroy_some(proposal.opt_transfer_recipient);
                 let transfer_amount: u64                 = option::destroy_some(proposal.opt_transfer_amount);
@@ -921,18 +923,18 @@ module dao_generator_addr::standard_dao {
 
             };
 
-            if (proposal.proposal_sub_type == std::string::utf8(b"coin_transfer")) {
+            if (proposal.proposal_sub_type == string::utf8(b"coin_transfer")) {
                 abort ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED
             };
             
-            if (proposal.proposal_sub_type == std::string::utf8(b"proposal_update")) {
+            if (proposal.proposal_sub_type == string::utf8(b"proposal_update")) {
 
                 // Handle proposal type updates
                 let update_type: String        = option::destroy_some(proposal.opt_update_type);
                 let proposal_type_name: String = option::destroy_some(proposal.opt_proposal_type);
 
                 // add or update proposal type
-                if (update_type == std::string::utf8(b"update")) {
+                if (update_type == string::utf8(b"update")) {
                 
                     let duration: u64                        = option::destroy_some(proposal.opt_duration);
                     let success_vote_percent: u16            = option::destroy_some(proposal.opt_success_vote_percent);
@@ -954,7 +956,7 @@ module dao_generator_addr::standard_dao {
                     
                 }; 
                 
-                if (update_type == std::string::utf8(b"remove")) {
+                if (update_type == string::utf8(b"remove")) {
 
                     let proposal_type_count = smart_table::length(&proposal_type_table.proposal_types);
                     if(proposal_type_count > 1){
@@ -967,7 +969,7 @@ module dao_generator_addr::standard_dao {
             
             };
             
-            if (proposal.proposal_sub_type == std::string::utf8(b"dao_update")) {
+            if (proposal.proposal_sub_type == string::utf8(b"dao_update")) {
                 
                 if(option::is_some(&proposal.opt_dao_name)){
                     dao.name = option::destroy_some(proposal.opt_dao_name);
@@ -984,12 +986,12 @@ module dao_generator_addr::standard_dao {
             };
             
             // Mark proposal as executed
-            proposal.result   = std::string::utf8(b"SUCCESS");
+            proposal.result   = string::utf8(b"SUCCESS");
             proposal.executed = true;
 
         } else {
             // Proposal did not pass; mark as executed without action
-            proposal.result   = std::string::utf8(b"FAIL");
+            proposal.result   = string::utf8(b"FAIL");
             proposal.executed = true;
         };
 
@@ -1043,7 +1045,7 @@ module dao_generator_addr::standard_dao {
         if ((proposal.votes_yay as u128) >= required_votes) {
             
             // Proposal passed
-            if (proposal.proposal_sub_type == std::string::utf8(b"coin_transfer")) {
+            if (proposal.proposal_sub_type == string::utf8(b"coin_transfer")) {
                 
                 let transfer_recipient: address          = option::destroy_some(proposal.opt_transfer_recipient);
                 let transfer_amount: u64                 = option::destroy_some(proposal.opt_transfer_amount);
@@ -1067,12 +1069,12 @@ module dao_generator_addr::standard_dao {
             };
             
             // Mark proposal as executed
-            proposal.result   = std::string::utf8(b"SUCCESS");
+            proposal.result   = string::utf8(b"SUCCESS");
             proposal.executed = true;
 
         } else {
             // Proposal did not pass; mark as executed without action
-            proposal.result   = std::string::utf8(b"FAIL");
+            proposal.result   = string::utf8(b"FAIL");
             proposal.executed = true;
         };
 
@@ -1095,10 +1097,10 @@ module dao_generator_addr::standard_dao {
     // -----------------------------------
 
     #[view]
-    public fun get_dao_info(): (address, String, String, String, Object<Metadata>) acquires Dao {
+    public fun get_dao_info(): (address, String, String, String, String, Object<Metadata>) acquires Dao {
         let dao_addr = get_dao_addr();
         let dao      = borrow_global<Dao>(dao_addr);
-        (dao.creator, dao.name, dao.description, dao.image_url, dao.governance_token_metadata)
+        (dao.creator, dao.name, dao.description, dao.image_url, dao.dao_type, dao.governance_token_metadata)
     }
 
 
@@ -1171,7 +1173,7 @@ module dao_generator_addr::standard_dao {
     // -----------------------------------
 
     fun get_dao_addr(): address {
-        object::create_object_address(&@dao_generator_addr, APP_OBJECT_SEED)
+        object::create_object_address(&@basedao_addr, APP_OBJECT_SEED)
     }
 
     fun get_dao_signer(dao_addr: address): signer acquires DaoSigner {

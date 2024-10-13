@@ -1,13 +1,13 @@
 #[test_only]
-module dao_generator_addr::standard_dao_test {
+module basedao_addr::standard_dao_test {
 
-    use dao_generator_addr::standard_dao;
-    use token_addr::gov_token;
-    use token_addr::moon_coin;
+    use basedao_addr::standard_dao;
+    use basedao_addr::gov_token;
+    use basedao_addr::moon_coin;
     
     use std::signer;
     use std::option::{Self};
-    use std::string::{String};
+    use std::string::{Self, String};
 
     use aptos_std::smart_table::{SmartTable};
     
@@ -45,7 +45,7 @@ module dao_generator_addr::standard_dao_test {
     // Constants
     // -----------------------------------
 
-    const CREATION_FEE: u64                                 = 0;     
+    const CREATION_FEE: u64                                 = 1;     
     const FEE_RECEIVER: address                             = @fee_receiver_addr;
 
     // -----------------------------------
@@ -163,9 +163,9 @@ module dao_generator_addr::standard_dao_test {
     ){
 
         // set up initial values for creating a campaign
-        let name            = std::string::utf8(b"Test DAO Name");
-        let description     = std::string::utf8(b"Test DAO Description");
-        let image_url       = std::string::utf8(b"Test DAO Image Url");
+        let name            = string::utf8(b"Test DAO Name");
+        let description     = string::utf8(b"Test DAO Description");
+        let image_url       = string::utf8(b"Test DAO Image Url");
 
         // call setup dao
         standard_dao::init_dao(
@@ -182,7 +182,7 @@ module dao_generator_addr::standard_dao_test {
     // Unit Tests
     // -----------------------------------
 
-    #[test(aptos_framework = @0x1, dao_generator=@dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_init_dao(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -200,9 +200,9 @@ module dao_generator_addr::standard_dao_test {
         standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
 
         // set up initial values for creating a campaign
-        let name            = std::string::utf8(b"Test DAO Name");
-        let description     = std::string::utf8(b"Test DAO Description");
-        let image_url       = std::string::utf8(b"Test DAO Image Url");
+        let name            = string::utf8(b"Test DAO Name");
+        let description     = string::utf8(b"Test DAO Description");
+        let image_url       = string::utf8(b"Test DAO Image Url");
 
         // get aptos coin balances before init_dao
         let creator_balance_before      = coin::balance<AptosCoin>(signer::address_of(creator));
@@ -227,6 +227,7 @@ module dao_generator_addr::standard_dao_test {
             dao_name,
             dao_description,
             dao_image_url,
+            dao_type,
             dao_governance_token_metadata
         ) = standard_dao::get_dao_info();
         
@@ -235,18 +236,19 @@ module dao_generator_addr::standard_dao_test {
         assert!(dao_name == name                                    , 101);
         assert!(dao_description == description                      , 102);
         assert!(dao_image_url == image_url                          , 103);
-        assert!(dao_governance_token_metadata == gov_token_metadata , 104);
+        assert!(dao_type == string::utf8(b"standard")               , 104);
+        assert!(dao_governance_token_metadata == gov_token_metadata , 105);
 
         // verify creation fee was paid
-        assert!(creator_balance_before >= creator_balance_after                          , 105);
-        assert!(fee_receiver_balance_after >= fee_receiver_balance_before                , 106);
-        assert!(creator_balance_before - creator_balance_after == CREATION_FEE           , 107);
-        assert!(fee_receiver_balance_after - fee_receiver_balance_before == CREATION_FEE , 108);
+        assert!(creator_balance_before >= creator_balance_after                          , 106);
+        assert!(fee_receiver_balance_after >= fee_receiver_balance_before                , 107);
+        assert!(creator_balance_before - creator_balance_after == CREATION_FEE           , 108);
+        assert!(fee_receiver_balance_after - fee_receiver_balance_before == CREATION_FEE , 109);
 
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator=@dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure]
     public entry fun test_init_dao_cannot_be_called_more_than_once(
         aptos_framework: &signer,
@@ -265,9 +267,9 @@ module dao_generator_addr::standard_dao_test {
         standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
 
         // set up initial values for creating a campaign
-        let name            = std::string::utf8(b"Test DAO Name");
-        let description     = std::string::utf8(b"Test DAO Description");
-        let image_url       = std::string::utf8(b"Test DAO Image Url");
+        let name            = string::utf8(b"Test DAO Name");
+        let description     = string::utf8(b"Test DAO Description");
+        let image_url       = string::utf8(b"Test DAO Image Url");
 
         // call setup dao
         standard_dao::init_dao(
@@ -290,7 +292,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_standard_proposal(
         aptos_framework: &signer,
@@ -309,9 +311,9 @@ module dao_generator_addr::standard_dao_test {
         standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
-        let proposal_title       = std::string::utf8(b"Test Proposal Name");
-        let proposal_description = std::string::utf8(b"Test Proposal Description");
-        let proposal_type        = std::string::utf8(b"standard");
+        let proposal_title       = string::utf8(b"Test Proposal Name");
+        let proposal_description = string::utf8(b"Test Proposal Description");
+        let proposal_type        = string::utf8(b"standard");
 
         // should fail
         standard_dao::create_standard_proposal(
@@ -324,7 +326,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_fa_transfer_proposal(
         aptos_framework: &signer,
@@ -343,9 +345,9 @@ module dao_generator_addr::standard_dao_test {
         standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
@@ -364,7 +366,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_coin_transfer_proposal(
         aptos_framework: &signer,
@@ -383,9 +385,9 @@ module dao_generator_addr::standard_dao_test {
         standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
@@ -404,7 +406,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_proposal_update_proposal(
         aptos_framework: &signer,
@@ -423,11 +425,11 @@ module dao_generator_addr::standard_dao_test {
         standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
-        let proposal_title                      = std::string::utf8(b"Test Proposal Name");
-        let proposal_description                = std::string::utf8(b"Test Proposal Description");
-        let proposal_type                       = std::string::utf8(b"standard");
-        let opt_proposal_type                   = std::string::utf8(b"new proposal type");
-        let opt_update_type                     = std::string::utf8(b"update");
+        let proposal_title                      = string::utf8(b"Test Proposal Name");
+        let proposal_description                = string::utf8(b"Test Proposal Description");
+        let proposal_type                       = string::utf8(b"standard");
+        let opt_proposal_type                   = string::utf8(b"new proposal type");
+        let opt_update_type                     = string::utf8(b"update");
         let opt_duration                        = option::some(100_000_000);
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
@@ -450,7 +452,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_insufficient_governance_tokens_cannot_create_dao_update_proposal(
         aptos_framework: &signer,
@@ -469,12 +471,12 @@ module dao_generator_addr::standard_dao_test {
         standard_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
         call_init_dao(creator, gov_token_metadata);
 
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
-        let opt_dao_name            = option::some(std::string::utf8(b"New DAO Name"));
-        let opt_dao_description     = option::some(std::string::utf8(b"New DAO Description"));
-        let opt_dao_image_url       = option::some(std::string::utf8(b"New DAO Image URL"));
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
+        let opt_dao_name            = option::some(string::utf8(b"New DAO Name"));
+        let opt_dao_description     = option::some(string::utf8(b"New DAO Description"));
+        let opt_dao_image_url       = option::some(string::utf8(b"New DAO Image URL"));
 
         // should fail
         standard_dao::create_dao_update_proposal(
@@ -490,7 +492,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_sufficient_governance_tokens_can_create_standard_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -513,9 +515,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
         let ( duration, _, _, _)   = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
@@ -527,7 +529,7 @@ module dao_generator_addr::standard_dao_test {
         );
 
         // check event emits expected info
-        let proposal_sub_type  = std::string::utf8(b"standard");
+        let proposal_sub_type  = string::utf8(b"standard");
         let new_proposal_event = standard_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
@@ -542,7 +544,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_sufficient_governance_tokens_can_create_fa_transfer_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -565,9 +567,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
@@ -585,7 +587,7 @@ module dao_generator_addr::standard_dao_test {
         );
 
         // check event emits expected info
-        let proposal_sub_type  = std::string::utf8(b"fa_transfer");
+        let proposal_sub_type  = string::utf8(b"fa_transfer");
         let new_proposal_event = standard_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
@@ -600,7 +602,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_sufficient_governance_tokens_can_create_proposal_update_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -623,11 +625,11 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id                         = standard_dao::get_next_proposal_id();
-        let proposal_title                      = std::string::utf8(b"Test Proposal Name");
-        let proposal_description                = std::string::utf8(b"Test Proposal Description");
-        let proposal_type                       = std::string::utf8(b"standard");
-        let opt_proposal_type                   = std::string::utf8(b"new proposal type");
-        let opt_update_type                     = std::string::utf8(b"update");
+        let proposal_title                      = string::utf8(b"Test Proposal Name");
+        let proposal_description                = string::utf8(b"Test Proposal Description");
+        let proposal_type                       = string::utf8(b"standard");
+        let opt_proposal_type                   = string::utf8(b"new proposal type");
+        let opt_update_type                     = string::utf8(b"update");
         let opt_duration                        = option::some(100_000_000);
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
@@ -649,7 +651,7 @@ module dao_generator_addr::standard_dao_test {
         );
 
         // check event emits expected info
-        let proposal_sub_type  = std::string::utf8(b"proposal_update");
+        let proposal_sub_type  = string::utf8(b"proposal_update");
         let new_proposal_event = standard_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
@@ -664,7 +666,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_INVALID_UPDATE_TYPE, location = standard_dao)]
     public entry fun test_user_cannot_create_proposal_update_proposal_with_invalid_update_type(
         aptos_framework: &signer,
@@ -687,11 +689,11 @@ module dao_generator_addr::standard_dao_test {
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_title                      = std::string::utf8(b"Test Proposal Name");
-        let proposal_description                = std::string::utf8(b"Test Proposal Description");
-        let proposal_type                       = std::string::utf8(b"standard");
-        let opt_proposal_type                   = std::string::utf8(b"new proposal type");
-        let opt_update_type                     = std::string::utf8(b"asdasd"); // invalid update type
+        let proposal_title                      = string::utf8(b"Test Proposal Name");
+        let proposal_description                = string::utf8(b"Test Proposal Description");
+        let proposal_type                       = string::utf8(b"standard");
+        let opt_proposal_type                   = string::utf8(b"new proposal type");
+        let opt_update_type                     = string::utf8(b"asdasd"); // invalid update type
         let opt_duration                        = option::some(100_000_000);
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
@@ -713,7 +715,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_sufficient_governance_tokens_can_create_dao_update_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -736,12 +738,12 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
-        let opt_dao_name            = option::some(std::string::utf8(b"New DAO Name"));
-        let opt_dao_description     = option::some(std::string::utf8(b"New DAO Description"));
-        let opt_dao_image_url       = option::some(std::string::utf8(b"New DAO Image URL"));
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
+        let opt_dao_name            = option::some(string::utf8(b"New DAO Name"));
+        let opt_dao_description     = option::some(string::utf8(b"New DAO Description"));
+        let opt_dao_image_url       = option::some(string::utf8(b"New DAO Image URL"));
         let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
@@ -756,7 +758,7 @@ module dao_generator_addr::standard_dao_test {
         );
 
         // check event emits expected info
-        let proposal_sub_type  = std::string::utf8(b"dao_update");
+        let proposal_sub_type  = string::utf8(b"dao_update");
         let new_proposal_event = standard_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
@@ -771,7 +773,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_user_with_sufficient_governance_tokens_can_vote_yay_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -794,10 +796,10 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
-        let proposal_sub_type      = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
+        let proposal_sub_type      = string::utf8(b"standard");
         
         let ( duration, success_vote_percent, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
@@ -862,13 +864,13 @@ module dao_generator_addr::standard_dao_test {
         assert!(view_duration               == duration                     , 110);
         assert!(view_start_timestamp        == start_timestamp              , 111);
         assert!(view_end_timestamp          == end_timestamp                , 112);
-        assert!(view_result                 == std::string::utf8(b"PENDING"), 113);
+        assert!(view_result                 == string::utf8(b"PENDING"), 113);
         assert!(view_executed               == false                        , 114);
 
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_user_with_sufficient_governance_tokens_can_vote_nay_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -891,9 +893,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
         
         standard_dao::create_standard_proposal(
             creator,
@@ -949,7 +951,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_user_with_sufficient_governance_tokens_can_vote_pass_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -972,9 +974,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
 
         standard_dao::create_standard_proposal(
             creator,
@@ -1030,7 +1032,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_multiple_users_with_sufficient_governance_tokens_can_vote_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1055,9 +1057,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(member_two), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
         
         standard_dao::create_standard_proposal(
             creator,
@@ -1116,7 +1118,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_ALREADY_VOTED, location = standard_dao)]
     public entry fun test_user_cannot_vote_twice_for_proposal(
         aptos_framework: &signer,
@@ -1140,9 +1142,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
 
         standard_dao::create_standard_proposal(
             creator,
@@ -1167,7 +1169,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_PROPOSAL_EXPIRED, location = standard_dao)]
     public entry fun test_user_cannot_vote_for_expired_proposal(
         aptos_framework: &signer,
@@ -1191,9 +1193,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
         let ( duration, _, _, _)   = standard_dao::get_proposal_type_info(proposal_type);
 
         standard_dao::create_standard_proposal(
@@ -1216,7 +1218,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_INSUFFICIENT_GOVERNANCE_TOKENS, location = standard_dao)]
     public entry fun test_user_with_insufficient_governance_tokens_cannot_vote_for_proposal(
         aptos_framework: &signer,
@@ -1240,9 +1242,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
 
         standard_dao::create_standard_proposal(
             creator,
@@ -1260,7 +1262,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_standard_proposal_can_be_executed_successfully_with_enough_yay_votes(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1283,10 +1285,10 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
-        let proposal_sub_type      = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
+        let proposal_sub_type      = string::utf8(b"standard");
         let ( duration, _, _, _)   = standard_dao::get_proposal_type_info(proposal_type);
 
         standard_dao::create_standard_proposal(
@@ -1317,7 +1319,7 @@ module dao_generator_addr::standard_dao_test {
             proposal_sub_type,
             proposal_title,
             proposal_description,
-            std::string::utf8(b"SUCCESS"), // proposal result
+            string::utf8(b"SUCCESS"), // proposal result
             true                           // proposal executed
         );
 
@@ -1326,7 +1328,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = standard_dao)]
     public entry fun test_proposal_cannot_be_executed_if_duration_has_not_ended(
         aptos_framework: &signer,
@@ -1350,9 +1352,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
 
         standard_dao::create_standard_proposal(
             creator,
@@ -1376,7 +1378,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_standard_proposal_can_be_executed_but_with_fail_result_with_insufficient_yay_votes(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1399,10 +1401,10 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id            = standard_dao::get_next_proposal_id();
-        let proposal_title         = std::string::utf8(b"Test Proposal Name");
-        let proposal_description   = std::string::utf8(b"Test Proposal Description");
-        let proposal_type          = std::string::utf8(b"standard");
-        let proposal_sub_type      = std::string::utf8(b"standard");
+        let proposal_title         = string::utf8(b"Test Proposal Name");
+        let proposal_description   = string::utf8(b"Test Proposal Description");
+        let proposal_type          = string::utf8(b"standard");
+        let proposal_sub_type      = string::utf8(b"standard");
         let ( duration, _, _, _)   = standard_dao::get_proposal_type_info(proposal_type);
 
         standard_dao::create_standard_proposal(
@@ -1438,7 +1440,7 @@ module dao_generator_addr::standard_dao_test {
             proposal_sub_type,
             proposal_title,
             proposal_description,
-            std::string::utf8(b"FAIL"), // proposal result
+            string::utf8(b"FAIL"), // proposal result
             true                        // proposal executed
         );
 
@@ -1447,7 +1449,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_proposal_to_add_new_proposal_type_can_be_executed_successfully_with_enough_yay_votes(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1470,11 +1472,11 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id                         = standard_dao::get_next_proposal_id();
-        let proposal_title                      = std::string::utf8(b"Test Proposal Name");
-        let proposal_description                = std::string::utf8(b"Test Proposal Description");
-        let proposal_type                       = std::string::utf8(b"standard");
-        let opt_proposal_type                   = std::string::utf8(b"new proposal type");
-        let opt_update_type                     = std::string::utf8(b"update");
+        let proposal_title                      = string::utf8(b"Test Proposal Name");
+        let proposal_description                = string::utf8(b"Test Proposal Description");
+        let proposal_type                       = string::utf8(b"standard");
+        let opt_proposal_type                   = string::utf8(b"new proposal type");
+        let opt_update_type                     = string::utf8(b"update");
         let opt_duration                        = option::some(100_000_000);
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
@@ -1524,7 +1526,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_proposal_to_update_proposal_type_can_be_executed_successfully_with_enough_yay_votes(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1547,11 +1549,11 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id                         = standard_dao::get_next_proposal_id();
-        let proposal_title                      = std::string::utf8(b"Test Proposal Name");
-        let proposal_description                = std::string::utf8(b"Test Proposal Description");
-        let proposal_type                       = std::string::utf8(b"standard");
-        let opt_proposal_type                   = std::string::utf8(b"standard");
-        let opt_update_type                     = std::string::utf8(b"update");
+        let proposal_title                      = string::utf8(b"Test Proposal Name");
+        let proposal_description                = string::utf8(b"Test Proposal Description");
+        let proposal_type                       = string::utf8(b"standard");
+        let opt_proposal_type                   = string::utf8(b"standard");
+        let opt_update_type                     = string::utf8(b"update");
         let opt_duration                        = option::some(100_000_000);
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
@@ -1602,7 +1604,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE, location = standard_dao)]
     public entry fun test_proposal_execution_fails_to_remove_proposal_type_if_there_are_none_left(
         aptos_framework: &signer,
@@ -1626,11 +1628,11 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id                         = standard_dao::get_next_proposal_id();
-        let proposal_title                      = std::string::utf8(b"Test Proposal Name");
-        let proposal_description                = std::string::utf8(b"Test Proposal Description");
-        let proposal_type                       = std::string::utf8(b"standard");
-        let opt_proposal_type                   = std::string::utf8(b"standard");
-        let opt_update_type                     = std::string::utf8(b"remove");
+        let proposal_title                      = string::utf8(b"Test Proposal Name");
+        let proposal_description                = string::utf8(b"Test Proposal Description");
+        let proposal_type                       = string::utf8(b"standard");
+        let opt_proposal_type                   = string::utf8(b"standard");
+        let opt_update_type                     = string::utf8(b"remove");
         let opt_duration                        = option::some(100_000_000);
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
@@ -1668,7 +1670,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure]
     public entry fun test_proposal_to_remove_proposal_type_can_be_executed_successfully_with_enough_yay_votes(
         aptos_framework: &signer,
@@ -1692,11 +1694,11 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id                         = standard_dao::get_next_proposal_id();
-        let proposal_title                      = std::string::utf8(b"Test Proposal Name");
-        let proposal_description                = std::string::utf8(b"Test Proposal Description");
-        let proposal_type                       = std::string::utf8(b"standard");
-        let opt_proposal_type                   = std::string::utf8(b"advanced");
-        let opt_update_type                     = std::string::utf8(b"update");
+        let proposal_title                      = string::utf8(b"Test Proposal Name");
+        let proposal_description                = string::utf8(b"Test Proposal Description");
+        let proposal_type                       = string::utf8(b"standard");
+        let opt_proposal_type                   = string::utf8(b"advanced");
+        let opt_update_type                     = string::utf8(b"update");
         let opt_duration                        = option::some(100_000_000);
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
@@ -1727,18 +1729,18 @@ module dao_generator_addr::standard_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        // add a new ADVANCED proposal type
+        // add a new ADVANCED proposal type!
         standard_dao::execute_proposal(
             proposal_id
         );
 
         // start new proposal to remove ADVANCED proposal type
         proposal_id                         = standard_dao::get_next_proposal_id();
-        proposal_title                      = std::string::utf8(b"Test Proposal Name");
-        proposal_description                = std::string::utf8(b"Test Proposal Description");
-        proposal_type                       = std::string::utf8(b"standard");
-        opt_proposal_type                   = std::string::utf8(b"advanced");
-        opt_update_type                     = std::string::utf8(b"remove");
+        proposal_title                      = string::utf8(b"Test Proposal Name");
+        proposal_description                = string::utf8(b"Test Proposal Description");
+        proposal_type                       = string::utf8(b"standard");
+        opt_proposal_type                   = string::utf8(b"advanced");
+        opt_update_type                     = string::utf8(b"remove");
         opt_duration                        = option::none();
         opt_success_vote_percent            = option::none();
         opt_min_amount_to_vote              = option::none();
@@ -1773,13 +1775,13 @@ module dao_generator_addr::standard_dao_test {
             proposal_id
         );
 
-        // should fail as proposal type was removed
+        // should fail as proposal type has now been removed
         let ( _, _, _, _)   = standard_dao::get_proposal_type_info(opt_proposal_type);
 
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_proposal_to_update_dao_info_can_be_executed_successfully_with_enough_yay_votes(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1802,12 +1804,12 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
-        let opt_dao_name            = option::some(std::string::utf8(b"New DAO Name"));
-        let opt_dao_description     = option::some(std::string::utf8(b"New DAO Description"));
-        let opt_dao_image_url       = option::some(std::string::utf8(b"New DAO Image URL"));
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
+        let opt_dao_name            = option::some(string::utf8(b"New DAO Name"));
+        let opt_dao_description     = option::some(string::utf8(b"New DAO Description"));
+        let opt_dao_image_url       = option::some(string::utf8(b"New DAO Image URL"));
         let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
 
         // should pass
@@ -1841,6 +1843,7 @@ module dao_generator_addr::standard_dao_test {
             dao_name,
             dao_description,
             dao_image_url,
+            _dao_type,
             _dao_governance_token_metadata
         ) = standard_dao::get_dao_info();
 
@@ -1851,7 +1854,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_proposal_to_update_partial_dao_info_can_be_executed_successfully_with_enough_yay_votes(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1874,10 +1877,10 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
-        let opt_dao_name            = option::some(std::string::utf8(b"New DAO Name"));
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
+        let opt_dao_name            = option::some(string::utf8(b"New DAO Name"));
         let opt_dao_description     = option::none();
         let opt_dao_image_url       = option::none();
         let ( duration, _, _, _)    = standard_dao::get_proposal_type_info(proposal_type);
@@ -1909,6 +1912,7 @@ module dao_generator_addr::standard_dao_test {
             _initial_dao_name,
             initial_dao_description,
             initial_dao_image_url,
+            _dao_type,
             _dao_governance_token_metadata
         ) = standard_dao::get_dao_info();
 
@@ -1922,6 +1926,7 @@ module dao_generator_addr::standard_dao_test {
             dao_name,
             dao_description,
             dao_image_url,
+            _dao_type,
             _dao_governance_token_metadata
         ) = standard_dao::get_dao_info();
 
@@ -1932,7 +1937,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_proposal_to_transfer_fungible_assets_can_be_executed_successfully_with_enough_yay_votes(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1955,9 +1960,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
@@ -2007,7 +2012,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure]
     public entry fun test_proposal_to_transfer_fungible_assets_should_fail_if_dao_does_not_have_sufficient_tokens_to_transfer(
         aptos_framework: &signer,
@@ -2031,9 +2036,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
@@ -2076,7 +2081,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = standard_dao)]
     public entry fun test_proposal_to_transfer_fungible_assets_should_fail_if_called_by_wrong_execute_proposal_function(
         aptos_framework: &signer,
@@ -2100,9 +2105,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
@@ -2135,7 +2140,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_proposal_to_transfer_coins_can_be_executed_successfully_with_enough_yay_votes(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2158,9 +2163,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
@@ -2210,7 +2215,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_coin_store_created_on_new_coin_deposit(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2249,7 +2254,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     public entry fun test_proposal_to_transfer_coins_with_insufficient_yay_votes_will_have_fail_result(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2272,9 +2277,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
@@ -2317,7 +2322,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = standard_dao)]
     public entry fun test_proposal_to_transfer_coins_should_fail_if_called_by_wrong_execute_proposal_function(
         aptos_framework: &signer,
@@ -2341,9 +2346,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
@@ -2383,7 +2388,7 @@ module dao_generator_addr::standard_dao_test {
         );
     }
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_MISMATCH_COIN_STRUCT_NAME, location = standard_dao)]
     public entry fun test_proposal_to_transfer_coins_should_fail_if_given_wrong_coin_struct_name(
         aptos_framework: &signer,
@@ -2407,9 +2412,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoinWrong";
@@ -2450,7 +2455,7 @@ module dao_generator_addr::standard_dao_test {
     }
 
 
-    #[test(aptos_framework = @0x1, dao_generator = @dao_generator_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
     #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = standard_dao)]
     public entry fun test_execute_coin_transfer_proposal_should_fail_if_proposal_voting_has_not_ended(
         aptos_framework: &signer,
@@ -2474,9 +2479,9 @@ module dao_generator_addr::standard_dao_test {
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_id             = standard_dao::get_next_proposal_id();
-        let proposal_title          = std::string::utf8(b"Test Proposal Name");
-        let proposal_description    = std::string::utf8(b"Test Proposal Description");
-        let proposal_type           = std::string::utf8(b"standard");
+        let proposal_title          = string::utf8(b"Test Proposal Name");
+        let proposal_description    = string::utf8(b"Test Proposal Description");
+        let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoinWrong";
