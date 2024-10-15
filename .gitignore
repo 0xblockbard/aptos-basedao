@@ -3,7 +3,7 @@
 .env
 move/build
 move/.trace
-move/coverage_map.mvcov
+move/.coverage_map.mvcov
 
 # Logs
 logs
