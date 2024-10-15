@@ -863,8 +863,17 @@ module basedao_addr::standard_dao_test {
         assert!(view_duration               == duration                     , 110);
         assert!(view_start_timestamp        == start_timestamp              , 111);
         assert!(view_end_timestamp          == end_timestamp                , 112);
-        assert!(view_result                 == string::utf8(b"PENDING"), 113);
+        assert!(view_result                 == string::utf8(b"PENDING")     , 113);
         assert!(view_executed               == false                        , 114);
+
+        // get user vote info view
+        let (
+            view_vote_type,
+            view_vote_count 
+        ) = standard_dao::get_proposal_voter_info(proposal_id, signer::address_of(creator));
+
+        assert!(view_vote_type == vote_type     , 115);
+        assert!(view_vote_count == mint_amount  , 116);
 
     }
 

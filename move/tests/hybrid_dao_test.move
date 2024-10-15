@@ -1,7 +1,7 @@
 #[test_only]
-module basedao_addr::guild_dao_test {
+module basedao_addr::hybrid_dao_test {
 
-    use basedao_addr::guild_dao;
+    use basedao_addr::hybrid_dao;
     use basedao_addr::gov_token;
     use basedao_addr::moon_coin;
     
@@ -28,7 +28,7 @@ module basedao_addr::guild_dao_test {
     const ERROR_DAO_IS_PAUSED: u64                          = 3;
     const ERROR_INVALID_PROPOSAL_SUB_TYPE: u64              = 4;
     const ERROR_INCORRECT_CREATION_FEE : u64                = 4;
-    const ERROR_INSUFFICIENT_GOVERNANCE_TOKENS : u64        = 5;
+    const ERROR_INSUFFICIENT_VOTE_WEIGHT : u64              = 5;
     const ERROR_PROPOSAL_EXPIRED : u64                      = 6;
     const ERROR_INVALID_TOKEN_METADATA: u64                 = 7;
     const ERROR_PROPOSAL_HAS_NOT_ENDED: u64                 = 8;
@@ -50,8 +50,10 @@ module basedao_addr::guild_dao_test {
     const CREATION_FEE: u64                                 = 1;     
     const FEE_RECEIVER: address                             = @fee_receiver_addr;
     
-    const DEFAULT_RECRUIT_VOTE_WEIGHT: u64                  = 100;
-    const DEFAULT_LEADER_VOTE_WEIGHT: u64                   = 900;
+    const DEFAULT_RECRUIT_VOTE_MULTIPLIER: u64              = 1;
+    const DEFAULT_NOVICE_VOTE_MULTIPLIER: u64               = 2;
+    const DEFAULT_EXECUTIVE_VOTE_MULTIPLIER: u64            = 8;
+    const DEFAULT_LEADER_VOTE_MULTIPLIER: u64               = 9;
 
     // -----------------------------------
     // Structs
@@ -163,7 +165,8 @@ module basedao_addr::guild_dao_test {
     // -----------------------------------
 
     public fun call_init_dao(
-        creator: &signer
+        creator: &signer,
+        gov_token_metadata: Object<Metadata>
     ){
 
         // set up initial values for creating a campaign
@@ -172,11 +175,12 @@ module basedao_addr::guild_dao_test {
         let image_url       = string::utf8(b"Test DAO Image Url");
 
         // call setup dao
-        guild_dao::init_dao(
+        hybrid_dao::init_dao(
             creator,
             name,
             description,
-            image_url
+            image_url,
+            gov_token_metadata
         );
 
     }
@@ -195,8 +199,12 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
 
         // set up initial values for creating a campaign
         let name            = string::utf8(b"Test DAO Name");
@@ -208,11 +216,12 @@ module basedao_addr::guild_dao_test {
         let fee_receiver_balance_before = coin::balance<AptosCoin>(signer::address_of(fee_receiver));
 
         // call setup dao
-        guild_dao::init_dao(
+        hybrid_dao::init_dao(
             creator,
             name,
             description,
-            image_url
+            image_url,
+            gov_token_metadata
         );
 
         // get aptos coin balances after init_dao
@@ -226,11 +235,12 @@ module basedao_addr::guild_dao_test {
             dao_description,
             dao_image_url,
             dao_type,
+            dao_governance_token_metadata,
             _min_executive_vote_weight,
             _min_leader_vote_weight,
             _role_count,
             _member_count
-        ) = guild_dao::get_dao_info();
+        ) = hybrid_dao::get_dao_info();
         
         // verify dao details
         assert!(dao_creator == signer::address_of(creator)          , 100);
@@ -238,12 +248,13 @@ module basedao_addr::guild_dao_test {
         assert!(dao_description == description                      , 102);
         assert!(dao_image_url == image_url                          , 103);
         assert!(dao_type == string::utf8(b"guild")                  , 104);
+        assert!(dao_governance_token_metadata == gov_token_metadata , 105);
 
         // verify creation fee was paid
-        assert!(creator_balance_before >= creator_balance_after                          , 105);
-        assert!(fee_receiver_balance_after >= fee_receiver_balance_before                , 106);
-        assert!(creator_balance_before - creator_balance_after == CREATION_FEE           , 107);
-        assert!(fee_receiver_balance_after - fee_receiver_balance_before == CREATION_FEE , 108);
+        assert!(creator_balance_before >= creator_balance_after                          , 106);
+        assert!(fee_receiver_balance_after >= fee_receiver_balance_before                , 107);
+        assert!(creator_balance_before - creator_balance_after == CREATION_FEE           , 108);
+        assert!(fee_receiver_balance_after - fee_receiver_balance_before == CREATION_FEE , 109);
 
     }
 
@@ -259,8 +270,12 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
 
         // set up initial values for creating a campaign
         let name            = string::utf8(b"Test DAO Name");
@@ -268,19 +283,21 @@ module basedao_addr::guild_dao_test {
         let image_url       = string::utf8(b"Test DAO Image Url");
 
         // call setup dao
-        guild_dao::init_dao(
+        hybrid_dao::init_dao(
             creator,
             name,
             description,
-            image_url
+            image_url,
+            gov_token_metadata
         );
 
         // call setup dao
-        guild_dao::init_dao(
+        hybrid_dao::init_dao(
             creator,
             name,
             description,
-            image_url
+            image_url,
+            gov_token_metadata
         );
 
     }
@@ -300,13 +317,17 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // this adjusts min_executive_vote_weight required to access executive entrypoints
         let new_min_executive_vote_weight = 600;
-        guild_dao::update_executive_vote_weight(creator, new_min_executive_vote_weight);
+        hybrid_dao::update_executive_vote_weight(creator, new_min_executive_vote_weight);
 
         // get dao info
         let (
@@ -315,18 +336,19 @@ module basedao_addr::guild_dao_test {
             _dao_description,
             _dao_image_url,
             _dao_type,
+            _dao_governance_token_metadata,
             min_executive_vote_weight,
             _min_leader_vote_weight,
             _role_count,
             _member_count
-        ) = guild_dao::get_dao_info();
+        ) = hybrid_dao::get_dao_info();
 
         assert!(min_executive_vote_weight == new_min_executive_vote_weight, 100);
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = hybrid_dao)]
     public entry fun test_non_member_cannot_update_executive_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -336,19 +358,23 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // this adjusts min_executive_vote_weight required to access executive entrypoints
         let new_min_executive_vote_weight = 600;
-        guild_dao::update_executive_vote_weight(member_one, new_min_executive_vote_weight);
+        hybrid_dao::update_executive_vote_weight(member_one, new_min_executive_vote_weight);
 
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_member_with_low_role_cannot_update_executive_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -358,17 +384,21 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // this adjusts min_executive_vote_weight required to access executive entrypoints
         let new_min_executive_vote_weight = 600;
-        guild_dao::update_executive_vote_weight(member_one, new_min_executive_vote_weight);
+        hybrid_dao::update_executive_vote_weight(member_one, new_min_executive_vote_weight);
 
     }
 
@@ -384,13 +414,17 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // this adjusts min_leader_vote_weight required to access leader entrypoints
         let new_min_leader_vote_weight = 600;
-        guild_dao::update_leader_vote_weight(creator, new_min_leader_vote_weight);
+        hybrid_dao::update_leader_vote_weight(creator, new_min_leader_vote_weight);
 
         // get dao info
         let (
@@ -399,11 +433,12 @@ module basedao_addr::guild_dao_test {
             _dao_description,
             _dao_image_url,
             _dao_type,
+            _dao_governance_token_metadata,
             _min_executive_vote_weight,
             min_leader_vote_weight,
             _role_count,
             _member_count
-        ) = guild_dao::get_dao_info();
+        ) = hybrid_dao::get_dao_info();
 
         assert!(min_leader_vote_weight == new_min_leader_vote_weight, 100);
 
@@ -411,7 +446,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = hybrid_dao)]
     public entry fun test_non_member_cannot_update_leader_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -421,19 +456,23 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // this adjusts min_leader_vote_weight required to access leader entrypoints
         let new_min_leader_vote_weight = 600;
-        guild_dao::update_leader_vote_weight(member_one, new_min_leader_vote_weight);
+        hybrid_dao::update_leader_vote_weight(member_one, new_min_leader_vote_weight);
 
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_member_with_low_role_cannot_update_leader_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -443,17 +482,21 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // this adjusts min_leader_vote_weight required to access leader entrypoints
         let new_min_leader_vote_weight = 600;
-        guild_dao::update_leader_vote_weight(member_one, new_min_leader_vote_weight);
+        hybrid_dao::update_leader_vote_weight(member_one, new_min_leader_vote_weight);
 
     }
 
@@ -468,9 +511,13 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add new proposal type
         let proposal_type_name              = string::utf8(b"NEW_PROPOSAL_TYPE");
@@ -480,7 +527,7 @@ module basedao_addr::guild_dao_test {
         let min_amount_to_execute_proposal  = 20;
 
         // add new proposal
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             creator,
             proposal_type_name,
             duration,
@@ -495,7 +542,7 @@ module basedao_addr::guild_dao_test {
             view_min_amount_to_vote, 
             view_min_amount_to_create_proposal, 
             view_min_amount_to_execute_proposal
-        )   = guild_dao::get_proposal_type_info(proposal_type_name);
+        )   = hybrid_dao::get_proposal_type_info(proposal_type_name);
 
         assert!(view_duration                        == duration                        , 101);
         assert!(view_min_amount_to_vote              == min_amount_to_vote              , 102);
@@ -509,7 +556,7 @@ module basedao_addr::guild_dao_test {
         min_amount_to_execute_proposal  = 31;
 
         // update proposal type
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             creator,
             proposal_type_name,
             duration,
@@ -524,7 +571,7 @@ module basedao_addr::guild_dao_test {
             view_min_amount_to_vote, 
             view_min_amount_to_create_proposal, 
             view_min_amount_to_execute_proposal
-        )   = guild_dao::get_proposal_type_info(proposal_type_name);
+        )   = hybrid_dao::get_proposal_type_info(proposal_type_name);
 
         assert!(view_duration                        == duration                        , 101);
         assert!(view_min_amount_to_vote              == min_amount_to_vote              , 102);
@@ -532,7 +579,7 @@ module basedao_addr::guild_dao_test {
         assert!(view_min_amount_to_execute_proposal  == min_amount_to_execute_proposal  , 104);
 
         // remove proposal
-        guild_dao::remove_proposal_types(
+        hybrid_dao::remove_proposal_types(
             creator,
             proposal_type_name
         );
@@ -540,7 +587,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = hybrid_dao)]
     public entry fun test_non_member_cannot_add_or_update_proposal_types(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -550,9 +597,13 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add new proposal type
         let proposal_type_name              = string::utf8(b"NEW_PROPOSAL_TYPE");
@@ -562,7 +613,7 @@ module basedao_addr::guild_dao_test {
         let min_amount_to_execute_proposal  = 20;
 
         // add new proposal should fail
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             member_one,
             proposal_type_name,
             duration,
@@ -575,7 +626,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_member_with_low_role_cannot_add_or_update_proposal_types(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -585,13 +636,17 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // add new proposal type
         let proposal_type_name              = string::utf8(b"NEW_PROPOSAL_TYPE");
@@ -601,7 +656,7 @@ module basedao_addr::guild_dao_test {
         let min_amount_to_execute_proposal  = 20;
 
         // add new proposal should fail
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             member_one,
             proposal_type_name,
             duration,
@@ -614,7 +669,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = hybrid_dao)]
     public entry fun test_non_member_cannot_remove_proposal_types(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -624,15 +679,19 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // proposal type
         let proposal_type_name = string::utf8(b"standard");
 
         // remove proposal // should fail
-        guild_dao::remove_proposal_types(
+        hybrid_dao::remove_proposal_types(
             member_one,
             proposal_type_name
         );
@@ -641,7 +700,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_member_with_low_role_cannot_remove_proposal_types(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -651,19 +710,23 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // proposal type
         let proposal_type_name = string::utf8(b"standard");
 
         // remove proposal should fail
-        guild_dao::remove_proposal_types(
+        hybrid_dao::remove_proposal_types(
             member_one,
             proposal_type_name
         );
@@ -684,31 +747,35 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         let role_to_add  = string::utf8(b"NEW ROLE");
-        let vote_weight  = 150;
+        let vote_weight  = 1;
 
-        // add new role with vote weight below executive (700)
-        guild_dao::add_or_update_role(member_one, role_to_add, vote_weight);
+        // add new role with vote weight below executive (7)
+        hybrid_dao::add_or_update_role(member_one, role_to_add, vote_weight);
 
-        // edit role with vote weight below executive (700)
-        vote_weight  = 500; 
-        guild_dao::add_or_update_role(member_one, role_to_add, vote_weight);
+        // edit role with vote weight below executive (7)
+        vote_weight  = 5; 
+        hybrid_dao::add_or_update_role(member_one, role_to_add, vote_weight);
 
         // remove role
-        guild_dao::remove_role(member_one, role_to_add);
+        hybrid_dao::remove_role(member_one, role_to_add);
 
     }
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = hybrid_dao)]
     public entry fun test_non_member_cannot_add_or_update_role(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -718,20 +785,24 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         let role_to_add  = string::utf8(b"novice");
         let vote_weight  = 150;
 
         // should fail
-        guild_dao::add_or_update_role(member_one, role_to_add, vote_weight);
+        hybrid_dao::add_or_update_role(member_one, role_to_add, vote_weight);
 
     }
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_member_with_low_role_cannot_add_or_update_row(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -741,26 +812,30 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         let role_to_add  = string::utf8(b"novice");
-        let vote_weight  = 150;
+        let vote_weight  = 1;
 
         // should fail
-        guild_dao::add_or_update_role(member_one, role_to_add, vote_weight);
+        hybrid_dao::add_or_update_role(member_one, role_to_add, vote_weight);
 
     }
 
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_executive_cannot_edit_his_role(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -770,24 +845,28 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         let role_to_edit = string::utf8(b"leader");
         let vote_weight  = 150;
 
         // should fail as role has greater weight than current executive role (800)
-        guild_dao::add_or_update_role(member_one, role_to_edit, vote_weight);
+        hybrid_dao::add_or_update_role(member_one, role_to_edit, vote_weight);
 
     }
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_executive_cannot_remove_roles_equal_or_above_his(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -797,22 +876,26 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         // should fail
-        guild_dao::remove_role(member_one, new_member_role);
+        hybrid_dao::remove_role(member_one, new_member_role);
 
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_executive_cannot_add_a_new_role_with_weight_greater_than_his_own(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -822,24 +905,59 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         let role_to_add  = string::utf8(b"superfounder");
-        let vote_weight  = 10000;
+        let vote_weight  = 20;
 
-        // should fail as new vote weight is greater than current executive role (800)
-        guild_dao::add_or_update_role(member_one, role_to_add, vote_weight);
+        // should fail as new vote weight is greater than current executive role (8)
+        hybrid_dao::add_or_update_role(member_one, role_to_add, vote_weight);
 
     }
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
+    public entry fun test_executive_cannot_update_a_role_with_weight_greater_than_his_own(
+        aptos_framework: &signer,
+        dao_generator: &signer,
+        creator: &signer,
+        fee_receiver: &signer,
+        member_one: &signer,
+        member_two: &signer,
+    )  {
+
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // add member to guild
+        let new_member_role = string::utf8(b"executive");
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+
+        let role_to_add  = string::utf8(b"leader");
+        let vote_weight  = 5;
+
+        // should fail as executive should not be able to edit leader role
+        hybrid_dao::add_or_update_role(member_one, role_to_add, vote_weight);
+
+    }
+
+    #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
+    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = hybrid_dao)]
     public entry fun test_non_member_cannot_remove_role(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -849,19 +967,23 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         let role_to_add  = string::utf8(b"recruit");
 
         // should fail
-        guild_dao::remove_role(member_one, role_to_add);
+        hybrid_dao::remove_role(member_one, role_to_add);
 
     }
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_member_with_low_role_cannot_remove_role(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -871,25 +993,29 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild as recruit
         let new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
 
         let role_to_add  = string::utf8(b"recruit");
 
         // should fail
-        guild_dao::remove_role(member_one, role_to_add);
+        hybrid_dao::remove_role(member_one, role_to_add);
 
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = hybrid_dao)]
     public entry fun test_non_guild_member_cannot_add_or_update_member(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -899,19 +1025,23 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // should fail: add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(member_one, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(member_one, signer::address_of(member_one), new_member_role);
 
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_member_with_low_role_cannot_add_member(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -921,22 +1051,26 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild as recruit
         let new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         // should fail: add/update member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(member_one, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(member_one, signer::address_of(member_one), new_member_role);
 
     }
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INVALID_ROLE, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INVALID_ROLE, location = hybrid_dao)]
     public entry fun test_executive_cannot_add_or_update_member_with_invalid_role(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -946,23 +1080,27 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         // should fail
         new_member_role = string::utf8(b"wrongrole");
-        guild_dao::add_or_update_member(member_one, signer::address_of(member_two), new_member_role);
+        hybrid_dao::add_or_update_member(member_one, signer::address_of(member_two), new_member_role);
 
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_executive_cannot_add_or_update_member_with_equal_or_higher_role(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -972,17 +1110,21 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         // should fail - executive cannot add others as executives
         new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(member_one, signer::address_of(member_two), new_member_role);
+        hybrid_dao::add_or_update_member(member_one, signer::address_of(member_two), new_member_role);
 
     }
 
@@ -997,25 +1139,29 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         // add new recruit
         new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(member_one, signer::address_of(member_two), new_member_role);
+        hybrid_dao::add_or_update_member(member_one, signer::address_of(member_two), new_member_role);
 
         // remove new recruit
-        guild_dao::remove_member(member_one, signer::address_of(member_two));
+        hybrid_dao::remove_member(member_one, signer::address_of(member_two));
 
     }
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_member_with_low_role_cannot_remove_member(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1025,25 +1171,29 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild as executive
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         // add new recruit
         new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(member_one, signer::address_of(member_two), new_member_role);
+        hybrid_dao::add_or_update_member(member_one, signer::address_of(member_two), new_member_role);
 
         // should fail: remove member
-        guild_dao::remove_member(member_two, signer::address_of(member_one));
+        hybrid_dao::remove_member(member_two, signer::address_of(member_one));
 
     }
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = hybrid_dao)]
     public entry fun test_non_member_cannot_remove_guild_member(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1053,18 +1203,22 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // should fail: remove member
-        guild_dao::remove_member(member_one, signer::address_of(creator));
+        hybrid_dao::remove_member(member_one, signer::address_of(creator));
 
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator=@basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = hybrid_dao)]
     public entry fun test_executive_cannot_remove_guild_member_with_higher_role(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1074,17 +1228,21 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
-        guild_dao::add_or_update_member(creator, signer::address_of(member_two), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_two), new_member_role);
 
         // should fail - executive cannot remove higher roles
-        guild_dao::remove_member(member_one, signer::address_of(creator));
+        hybrid_dao::remove_member(member_one, signer::address_of(creator));
 
     }
 
@@ -1095,8 +1253,8 @@ module basedao_addr::guild_dao_test {
     // -----------------------------------
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
-    public entry fun test_non_guild_member_cannot_create_standard_proposal(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_insufficient_vote_weight_cannot_create_standard_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -1105,16 +1263,20 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         let proposal_title       = string::utf8(b"Test Proposal Name");
         let proposal_description = string::utf8(b"Test Proposal Description");
         let proposal_type        = string::utf8(b"standard");
 
         // should fail
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             member_one,
             proposal_title,
             proposal_description,
@@ -1125,8 +1287,8 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
-    public entry fun test_non_guild_member_cannot_create_fa_transfer_proposal(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_insufficient_vote_weight_cannot_create_fa_transfer_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -1135,13 +1297,13 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
@@ -1151,7 +1313,7 @@ module basedao_addr::guild_dao_test {
         let opt_transfer_metadata   = gov_token_metadata;
 
         // should fail
-        guild_dao::create_fa_transfer_proposal(
+        hybrid_dao::create_fa_transfer_proposal(
             member_one,
             proposal_title,
             proposal_description,
@@ -1165,8 +1327,8 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
-    public entry fun test_non_guild_member_cannot_create_coin_transfer_proposal(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_insufficient_vote_weight_cannot_create_coin_transfer_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -1175,9 +1337,13 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
@@ -1187,7 +1353,7 @@ module basedao_addr::guild_dao_test {
         let opt_coin_struct_name    = b"AptosCoin";
 
         // should fail
-        guild_dao::create_coin_transfer_proposal(
+        hybrid_dao::create_coin_transfer_proposal(
             member_one,
             proposal_title,
             proposal_description,
@@ -1201,8 +1367,8 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
-    public entry fun test_non_guild_member_cannot_create_proposal_update_proposal(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_insufficient_vote_weight_cannot_create_proposal_update_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -1211,9 +1377,13 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         let proposal_title                      = string::utf8(b"Test Proposal Name");
         let proposal_description                = string::utf8(b"Test Proposal Description");
@@ -1226,7 +1396,7 @@ module basedao_addr::guild_dao_test {
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
 
         // should fail
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             member_one,
             proposal_title,
             proposal_description,
@@ -1243,8 +1413,8 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
-    public entry fun test_non_guild_member_cannot_create_dao_update_proposal(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_insufficient_vote_weight_cannot_create_dao_update_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -1253,9 +1423,13 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
@@ -1265,7 +1439,7 @@ module basedao_addr::guild_dao_test {
         let opt_dao_image_url       = option::some(string::utf8(b"New DAO Image URL"));
 
         // should fail
-        guild_dao::create_dao_update_proposal(
+        hybrid_dao::create_dao_update_proposal(
             member_one,
             proposal_title,
             proposal_description,
@@ -1288,25 +1462,26 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  { 
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
-        let ( duration, _, _, _)   = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)   = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1315,7 +1490,7 @@ module basedao_addr::guild_dao_test {
 
         // check event emits expected info
         let proposal_sub_type  = string::utf8(b"standard");
-        let new_proposal_event = guild_dao::test_NewProposalEvent(
+        let new_proposal_event = hybrid_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -1339,36 +1514,36 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // add member to guild
         let new_member_role = string::utf8(b"executive");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
 
         // mint gov tokens to member_one
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_two);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // check that ProposalTable does not exist
         assert!(!exists<ProposalTable>(signer::address_of(member_one)), 98);
 
         // should pass
-        guild_dao::create_fa_transfer_proposal(
+        hybrid_dao::create_fa_transfer_proposal(
             member_one,
             proposal_title,
             proposal_description,
@@ -1380,7 +1555,7 @@ module basedao_addr::guild_dao_test {
 
         // check event emits expected info
         let proposal_sub_type  = string::utf8(b"fa_transfer");
-        let new_proposal_event = guild_dao::test_NewProposalEvent(
+        let new_proposal_event = hybrid_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -1404,18 +1579,19 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
         
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id                         = guild_dao::get_next_proposal_id();
+        let proposal_id                         = hybrid_dao::get_next_proposal_id();
         let proposal_title                      = string::utf8(b"Test Proposal Name");
         let proposal_description                = string::utf8(b"Test Proposal Description");
         let proposal_type                       = string::utf8(b"standard");
@@ -1425,10 +1601,10 @@ module basedao_addr::guild_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1443,7 +1619,7 @@ module basedao_addr::guild_dao_test {
 
         // check event emits expected info
         let proposal_sub_type  = string::utf8(b"proposal_update");
-        let new_proposal_event = guild_dao::test_NewProposalEvent(
+        let new_proposal_event = hybrid_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -1458,7 +1634,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INVALID_UPDATE_TYPE, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_INVALID_UPDATE_TYPE, location = hybrid_dao)]
     public entry fun test_user_cannot_create_proposal_update_proposal_with_invalid_update_type(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -1468,12 +1644,13 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
@@ -1490,7 +1667,7 @@ module basedao_addr::guild_dao_test {
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
 
         // should fail
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1515,28 +1692,29 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {  
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_dao_name            = option::some(string::utf8(b"New DAO Name"));
         let opt_dao_description     = option::some(string::utf8(b"New DAO Description"));
         let opt_dao_image_url       = option::some(string::utf8(b"New DAO Image URL"));
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_dao_update_proposal(
+        hybrid_dao::create_dao_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1548,7 +1726,7 @@ module basedao_addr::guild_dao_test {
 
         // check event emits expected info
         let proposal_sub_type  = string::utf8(b"dao_update");
-        let new_proposal_event = guild_dao::test_NewProposalEvent(
+        let new_proposal_event = hybrid_dao::test_NewProposalEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -1563,7 +1741,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    public entry fun test_guild_member_can_vote_yay_for_proposal(
+    public entry fun test_sufficient_vote_weight_can_vote_yay_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -1572,29 +1750,30 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
         let proposal_sub_type      = string::utf8(b"standard");
         
-        let ( duration, _, _, min_amount_to_execute_proposal)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, min_amount_to_execute_proposal)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         let start_timestamp = timestamp::now_seconds();
         let end_timestamp   = timestamp::now_seconds() + duration;
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1602,18 +1781,21 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
+        // calculate final vote weight
+        let final_vote_weight = mint_amount * DEFAULT_LEADER_VOTE_MULTIPLIER;
+
         // check event emits expected info
-        let new_vote_event = guild_dao::test_NewVoteEvent(
+        let new_vote_event = hybrid_dao::test_NewVoteEvent(
             proposal_id,
             signer::address_of(creator),
             vote_type,
-            DEFAULT_LEADER_VOTE_WEIGHT
+            final_vote_weight
         );
 
         // verify if expected event was emitted
@@ -1638,16 +1820,16 @@ module basedao_addr::guild_dao_test {
             
             view_result,
             view_executed
-        ) = guild_dao::get_proposal_info(proposal_id);
+        ) = hybrid_dao::get_proposal_info(proposal_id);
 
         assert!(view_proposal_type                  == proposal_type                    , 101);
         assert!(view_proposal_sub_type              == proposal_sub_type                , 102);
         assert!(view_title                          == proposal_title                   , 103);
         assert!(view_description                    == proposal_description             , 104);
-        assert!(view_votes_yay                      == DEFAULT_LEADER_VOTE_WEIGHT       , 105);
+        assert!(view_votes_yay                      == final_vote_weight                , 105);
         assert!(view_votes_pass                     == 0                                , 106);
         assert!(view_votes_nay                      == 0                                , 107);
-        assert!(view_total_votes                    == DEFAULT_LEADER_VOTE_WEIGHT       , 109);
+        assert!(view_total_votes                    == final_vote_weight                , 109);
         assert!(view_min_amount_to_execute_proposal == min_amount_to_execute_proposal   , 109);
         assert!(view_duration                       == duration                         , 110);
         assert!(view_start_timestamp                == start_timestamp                  , 111);
@@ -1659,10 +1841,10 @@ module basedao_addr::guild_dao_test {
         let (
             view_vote_type,
             view_vote_count 
-        ) = guild_dao::get_proposal_voter_info(proposal_id, signer::address_of(creator));
+        ) = hybrid_dao::get_proposal_voter_info(proposal_id, signer::address_of(creator));
 
         assert!(view_vote_type == vote_type                     , 115);
-        assert!(view_vote_count == DEFAULT_LEADER_VOTE_WEIGHT   , 116);
+        assert!(view_vote_count == final_vote_weight            , 116);
 
     }
 
@@ -1677,23 +1859,24 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
         
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1701,18 +1884,21 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 0; // vote NAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
+        // calculate final vote weight
+        let final_vote_weight = mint_amount * DEFAULT_LEADER_VOTE_MULTIPLIER;
+
         // check event emits expected info
-        let new_vote_event = guild_dao::test_NewVoteEvent(
+        let new_vote_event = hybrid_dao::test_NewVoteEvent(
             proposal_id,
             signer::address_of(creator),
             vote_type,
-            DEFAULT_LEADER_VOTE_WEIGHT
+            final_vote_weight
         );
 
         // verify if expected event was emitted
@@ -1737,12 +1923,12 @@ module basedao_addr::guild_dao_test {
             
             _view_result,
             _view_executed
-        ) = guild_dao::get_proposal_info(proposal_id);
+        ) = hybrid_dao::get_proposal_info(proposal_id);
 
         assert!(view_votes_yay              == 0                            , 101);
         assert!(view_votes_pass             == 0                            , 102);
-        assert!(view_votes_nay              == DEFAULT_LEADER_VOTE_WEIGHT   , 103);
-        assert!(view_total_votes            == DEFAULT_LEADER_VOTE_WEIGHT   , 104);
+        assert!(view_votes_nay              == final_vote_weight            , 103);
+        assert!(view_total_votes            == final_vote_weight            , 104);
 
     }
 
@@ -1757,23 +1943,24 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 1000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1781,18 +1968,21 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 2; // vote PASS
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
+        // calculate final vote weight
+        let final_vote_weight = mint_amount * DEFAULT_LEADER_VOTE_MULTIPLIER;
+
         // check event emits expected info
-        let new_vote_event = guild_dao::test_NewVoteEvent(
+        let new_vote_event = hybrid_dao::test_NewVoteEvent(
             proposal_id,
             signer::address_of(creator),
             vote_type,
-            DEFAULT_LEADER_VOTE_WEIGHT
+            final_vote_weight
         );
 
         // verify if expected event was emitted
@@ -1817,12 +2007,12 @@ module basedao_addr::guild_dao_test {
             
             _view_result,
             _view_executed
-        ) = guild_dao::get_proposal_info(proposal_id);
+        ) = hybrid_dao::get_proposal_info(proposal_id);
 
         assert!(view_votes_yay              == 0                            , 101);
-        assert!(view_votes_pass             == DEFAULT_LEADER_VOTE_WEIGHT   , 102);
+        assert!(view_votes_pass             == final_vote_weight            , 102);
         assert!(view_votes_nay              == 0                            , 103);
-        assert!(view_total_votes            == DEFAULT_LEADER_VOTE_WEIGHT   , 104);
+        assert!(view_total_votes            == final_vote_weight            , 104);
 
     }
 
@@ -1837,24 +2027,35 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
         
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_two), mint_amount);
 
         // add members to guild
-        let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
-        guild_dao::add_or_update_member(creator, signer::address_of(member_two), default_new_member_role);
+        let default_new_member_role = string::utf8(b"novice");
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_two), default_new_member_role);
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        // calculate final vote weights
+        let novice_final_vote_weight = mint_amount * DEFAULT_NOVICE_VOTE_MULTIPLIER;
+        let leader_final_vote_weight = mint_amount * DEFAULT_LEADER_VOTE_MULTIPLIER;
+
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
         
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1862,21 +2063,21 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 0; // vote NAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
         vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
         );
 
         vote_type = 2; // vote PASS
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_two,
             proposal_id,
             vote_type
@@ -1901,12 +2102,12 @@ module basedao_addr::guild_dao_test {
             
             _view_result,
             _view_executed
-        ) = guild_dao::get_proposal_info(proposal_id);
+        ) = hybrid_dao::get_proposal_info(proposal_id);
 
-        assert!(view_votes_yay     == DEFAULT_RECRUIT_VOTE_WEIGHT                                      , 101);
-        assert!(view_votes_pass    == DEFAULT_RECRUIT_VOTE_WEIGHT                                      , 102);
-        assert!(view_votes_nay     == DEFAULT_LEADER_VOTE_WEIGHT                                       , 103);
-        assert!(view_total_votes   == DEFAULT_LEADER_VOTE_WEIGHT + (DEFAULT_RECRUIT_VOTE_WEIGHT * 2)   , 104);
+        assert!(view_votes_yay     == novice_final_vote_weight                                      , 101);
+        assert!(view_votes_pass    == novice_final_vote_weight                                      , 102);
+        assert!(view_votes_nay     == leader_final_vote_weight                                      , 103);
+        assert!(view_total_votes   == leader_final_vote_weight + (novice_final_vote_weight * 2)     , 104);
 
     }
 
@@ -1921,24 +2122,29 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator and member one
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
         // add members to guild
-        let default_new_member_role     = string::utf8(b"recruit");
-        let recruit_vote_weight         = 100;
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        let default_new_member_role     = string::utf8(b"novice");
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -1946,11 +2152,14 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
         );
+
+        // calculate final vote weight
+        let final_vote_weight = mint_amount * DEFAULT_NOVICE_VOTE_MULTIPLIER;
 
         // verify that votes was added propoerly
         let (
@@ -1971,15 +2180,15 @@ module basedao_addr::guild_dao_test {
             
             _view_result,
             _view_executed
-        ) = guild_dao::get_proposal_info(proposal_id);
+        ) = hybrid_dao::get_proposal_info(proposal_id);
 
-        assert!(view_votes_yay              == recruit_vote_weight  , 101);
+        assert!(view_votes_yay              == final_vote_weight    , 101);
         assert!(view_votes_pass             == 0                    , 102);
         assert!(view_votes_nay              == 0                    , 103);
-        assert!(view_total_votes            == recruit_vote_weight  , 104);
+        assert!(view_total_votes            == final_vote_weight    , 104);
 
         vote_type = 0; // change vote to NAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
@@ -2004,20 +2213,22 @@ module basedao_addr::guild_dao_test {
             
             _view_result,
             _view_executed
-        ) = guild_dao::get_proposal_info(proposal_id);
+        ) = hybrid_dao::get_proposal_info(proposal_id);
 
         assert!(view_votes_yay              == 0                     , 105);
         assert!(view_votes_pass             == 0                     , 106);
-        assert!(view_votes_nay              == recruit_vote_weight   , 107);
-        assert!(view_total_votes            == recruit_vote_weight   , 108);
+        assert!(view_votes_nay              == final_vote_weight     , 107);
+        assert!(view_total_votes            == final_vote_weight     , 108);
 
         // test with member role change from recruit to executive
         let new_member_role         = string::utf8(b"executive");
-        let executive_vote_weight   = 800;
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), new_member_role);
+
+        // calculate new final vote weight
+        let new_final_vote_weight = mint_amount * DEFAULT_EXECUTIVE_VOTE_MULTIPLIER;
 
         vote_type = 2; // change vote to PASS
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
@@ -2042,22 +2253,22 @@ module basedao_addr::guild_dao_test {
             
             _view_result,
             _view_executed
-        ) = guild_dao::get_proposal_info(proposal_id);
+        ) = hybrid_dao::get_proposal_info(proposal_id);
 
         assert!(view_votes_yay              == 0                        , 109);
-        assert!(view_votes_pass             == executive_vote_weight    , 110);
+        assert!(view_votes_pass             == new_final_vote_weight    , 110);
         assert!(view_votes_nay              == 0                        , 111);
-        assert!(view_total_votes            == executive_vote_weight    , 112);
+        assert!(view_total_votes            == new_final_vote_weight    , 112);
 
         vote_type = 2; // no change to vote 
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
         );
 
         vote_type = 1; // change vote to YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
@@ -2067,7 +2278,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_PROPOSAL_EXPIRED, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_PROPOSAL_EXPIRED, location = hybrid_dao)]
     public entry fun test_user_cannot_vote_for_expired_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2077,17 +2288,25 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
-        let ( duration, _, _, _)   = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)   = hybrid_dao::get_proposal_type_info(proposal_type);
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2098,7 +2317,7 @@ module basedao_addr::guild_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2108,8 +2327,8 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_NOT_GUILD_MEMBER, location = guild_dao)]
-    public entry fun test_non_guild_member_cannot_vote_for_proposal(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_insufficient_vote_weight_cannot_vote_for_proposal(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -2118,16 +2337,24 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2135,7 +2362,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
@@ -2144,8 +2371,8 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
-    public entry fun test_non_guild_member_cannot_vote_for_proposal_with_higher_min_amount_to_vote_than_his_role_vote_weight(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_insufficient_vote_weight_cannot_vote_for_proposal_with_higher_min_amount_to_vote_than_his_final_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -2154,23 +2381,32 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to member and creator
+        let mint_amount = 20_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
         // add member to guild as recruit
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // add new proposal type
         let proposal_type                   = string::utf8(b"NEW_PROPOSAL_TYPE");
         let duration                        = 10000;
-        let min_amount_to_vote              = 500; // set higher
-        let min_amount_to_create_proposal   = 10;
-        let min_amount_to_execute_proposal  = 20;
+        let min_amount_to_vote              = mint_amount * 3; // set higher
+        let min_amount_to_create_proposal   = mint_amount;
+        let min_amount_to_execute_proposal  = mint_amount;
 
         // add new proposal
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             creator,
             proposal_type,
             duration,
@@ -2179,20 +2415,20 @@ module basedao_addr::guild_dao_test {
             min_amount_to_execute_proposal
         );
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
             proposal_type
         );
 
-        // should fail as member one is recruit (100) but proposal type requires at least 500
+        // should fail as member one is recruit (20_000_000 * 1) but proposal type requires at least (20_000_000 * 3)
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
@@ -2210,18 +2446,26 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
         let proposal_sub_type      = string::utf8(b"standard");
-        let ( duration, _, _, _)   = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)   = hybrid_dao::get_proposal_type_info(proposal_type);
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2229,7 +2473,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2238,12 +2482,12 @@ module basedao_addr::guild_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
         // check event emits expected info
-        let proposal_executed_event = guild_dao::test_ProposalExecutedEvent(
+        let proposal_executed_event = hybrid_dao::test_ProposalExecutedEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -2259,7 +2503,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = hybrid_dao)]
     public entry fun test_proposal_cannot_be_executed_if_duration_has_not_ended(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2269,16 +2513,24 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2286,14 +2538,14 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
         // should fail
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
@@ -2310,22 +2562,31 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator and member
+        let mint_amount = 30_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
         // add members to guild
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
-        let proposal_id            = guild_dao::get_next_proposal_id();
+        let proposal_id            = hybrid_dao::get_next_proposal_id();
         let proposal_title         = string::utf8(b"Test Proposal Name");
         let proposal_description   = string::utf8(b"Test Proposal Description");
         let proposal_type          = string::utf8(b"standard");
         let proposal_sub_type      = string::utf8(b"standard");
-        let ( duration, _, _, _)   = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)   = hybrid_dao::get_proposal_type_info(proposal_type);
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2333,7 +2594,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             member_one,
             proposal_id,
             vote_type
@@ -2342,12 +2603,12 @@ module basedao_addr::guild_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
         // check event emits expected info
-        let proposal_executed_event = guild_dao::test_ProposalExecutedEvent(
+        let proposal_executed_event = hybrid_dao::test_ProposalExecutedEvent(
             proposal_id,
             proposal_type,
             proposal_sub_type,
@@ -2372,11 +2633,19 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id                         = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id                         = hybrid_dao::get_next_proposal_id();
         let proposal_title                      = string::utf8(b"Test Proposal Name");
         let proposal_description                = string::utf8(b"Test Proposal Description");
         let proposal_type                       = string::utf8(b"standard");
@@ -2386,10 +2655,10 @@ module basedao_addr::guild_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2403,7 +2672,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2412,7 +2681,7 @@ module basedao_addr::guild_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
@@ -2422,7 +2691,7 @@ module basedao_addr::guild_dao_test {
             new_success_vote_percent, 
             new_min_amount_to_vote, 
             new_min_amount_to_create_proposal
-        )   = guild_dao::get_proposal_type_info(opt_proposal_type);
+        )   = hybrid_dao::get_proposal_type_info(opt_proposal_type);
 
         assert!(new_duration                        == option::destroy_some(opt_duration)                       , 100);
         assert!(new_success_vote_percent            == option::destroy_some(opt_success_vote_percent)           , 101);
@@ -2441,11 +2710,19 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id                         = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id                         = hybrid_dao::get_next_proposal_id();
         let proposal_title                      = string::utf8(b"Test Proposal Name");
         let proposal_description                = string::utf8(b"Test Proposal Description");
         let proposal_type                       = string::utf8(b"standard");
@@ -2455,10 +2732,10 @@ module basedao_addr::guild_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2472,7 +2749,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2481,7 +2758,7 @@ module basedao_addr::guild_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
@@ -2491,7 +2768,7 @@ module basedao_addr::guild_dao_test {
             new_success_vote_percent, 
             new_min_amount_to_vote, 
             new_min_amount_to_create_proposal
-        )   = guild_dao::get_proposal_type_info(opt_proposal_type);
+        )   = hybrid_dao::get_proposal_type_info(opt_proposal_type);
 
         assert!(new_duration                        == option::destroy_some(opt_duration)                       , 100);
         assert!(new_success_vote_percent            == option::destroy_some(opt_success_vote_percent)           , 101);
@@ -2502,7 +2779,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_SHOULD_HAVE_AT_LEAST_ONE_PROPOSAL_TYPE, location = hybrid_dao)]
     public entry fun test_proposal_execution_fails_to_remove_proposal_type_if_there_are_none_left(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2512,11 +2789,19 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id                         = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id                         = hybrid_dao::get_next_proposal_id();
         let proposal_title                      = string::utf8(b"Test Proposal Name");
         let proposal_description                = string::utf8(b"Test Proposal Description");
         let proposal_type                       = string::utf8(b"standard");
@@ -2526,10 +2811,10 @@ module basedao_addr::guild_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2543,7 +2828,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2552,7 +2837,7 @@ module basedao_addr::guild_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
@@ -2570,11 +2855,19 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {   
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id                         = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id                         = hybrid_dao::get_next_proposal_id();
         let proposal_title                      = string::utf8(b"Test Proposal Name");
         let proposal_description                = string::utf8(b"Test Proposal Description");
         let proposal_type                       = string::utf8(b"standard");
@@ -2584,10 +2877,10 @@ module basedao_addr::guild_dao_test {
         let opt_success_vote_percent            = option::some(2000);
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
-        let ( duration, _, _, _)                = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)                = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2601,7 +2894,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2611,12 +2904,12 @@ module basedao_addr::guild_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         // add a new ADVANCED proposal type!
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
         // start new proposal to remove ADVANCED proposal type
-        proposal_id                         = guild_dao::get_next_proposal_id();
+        proposal_id                         = hybrid_dao::get_next_proposal_id();
         proposal_title                      = string::utf8(b"Test Proposal Name");
         proposal_description                = string::utf8(b"Test Proposal Description");
         proposal_type                       = string::utf8(b"standard");
@@ -2628,7 +2921,7 @@ module basedao_addr::guild_dao_test {
         opt_min_amount_to_create_proposal   = option::none();
 
         // should pass
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2642,7 +2935,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2652,12 +2945,12 @@ module basedao_addr::guild_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         // remove ADVANCED proposal type
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
         // should fail as proposal type has now been removed
-        let ( _, _, _, _)   = guild_dao::get_proposal_type_info(opt_proposal_type);
+        let ( _, _, _, _)   = hybrid_dao::get_proposal_type_info(opt_proposal_type);
 
     }
 
@@ -2672,21 +2965,29 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_dao_name            = option::some(string::utf8(b"New DAO Name"));
         let opt_dao_description     = option::some(string::utf8(b"New DAO Description"));
         let opt_dao_image_url       = option::some(string::utf8(b"New DAO Image URL"));
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_dao_update_proposal(
+        hybrid_dao::create_dao_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2697,7 +2998,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2706,7 +3007,7 @@ module basedao_addr::guild_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
@@ -2717,11 +3018,12 @@ module basedao_addr::guild_dao_test {
             dao_description,
             dao_image_url,
             _dao_type,
+            _dao_governance_token_metadata,
             _min_executive_vote_weight,
             _min_leader_vote_weight,
             _role_count,
             _member_count
-        ) = guild_dao::get_dao_info();
+        ) = hybrid_dao::get_dao_info();
 
         assert!(dao_name        == option::destroy_some(opt_dao_name)         , 100);
         assert!(dao_description == option::destroy_some(opt_dao_description)  , 101);
@@ -2740,21 +3042,29 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_dao_name            = option::some(string::utf8(b"New DAO Name"));
         let opt_dao_description     = option::none();
         let opt_dao_image_url       = option::none();
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_dao_update_proposal(
+        hybrid_dao::create_dao_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2765,7 +3075,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2781,13 +3091,14 @@ module basedao_addr::guild_dao_test {
             initial_dao_description,
             initial_dao_image_url,
             _dao_type,
+            _dao_governance_token_metadata,
             _min_executive_vote_weight,
             _min_leader_vote_weight,
             _role_count,
             _member_count
-        ) = guild_dao::get_dao_info();
+        ) = hybrid_dao::get_dao_info();
 
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
@@ -2798,11 +3109,12 @@ module basedao_addr::guild_dao_test {
             dao_description,
             dao_image_url,
             _dao_type,
+            _dao_governance_token_metadata,
             _min_executive_vote_weight,
             _min_leader_vote_weight,
             _role_count,
             _member_count
-        ) = guild_dao::get_dao_info();
+        ) = hybrid_dao::get_dao_info();
 
         assert!(dao_name        == option::destroy_some(opt_dao_name)   , 100);
         assert!(dao_description == initial_dao_description              , 101);
@@ -2821,37 +3133,37 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // deposit some gov tokens to dao
         let deposit_amount          = 300_000_000;
-        guild_dao::deposit_fa_to_dao(
+        hybrid_dao::deposit_fa_to_dao(
             creator,
             deposit_amount,
             gov_token_metadata
         );
 
         // should pass
-        guild_dao::create_fa_transfer_proposal(
+        hybrid_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2862,7 +3174,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2874,7 +3186,7 @@ module basedao_addr::guild_dao_test {
         // get member one balance before proposal execution
         let member_gov_token_balance_before = primary_fungible_store::balance(signer::address_of(member_one), gov_token_metadata);
 
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
@@ -2897,29 +3209,29 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-         // setup governance token 
+         // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_fa_transfer_proposal(
+        hybrid_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2930,7 +3242,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -2942,7 +3254,7 @@ module basedao_addr::guild_dao_test {
         // get member one balance before proposal execution
         let member_gov_token_balance_before = primary_fungible_store::balance(signer::address_of(member_one), gov_token_metadata);
 
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
 
@@ -2956,7 +3268,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = hybrid_dao)]
     public entry fun test_proposal_to_transfer_fungible_assets_should_fail_if_called_by_wrong_execute_proposal_function(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -2966,29 +3278,29 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-     // setup governance token 
+     // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // should pass
-        guild_dao::create_fa_transfer_proposal(
+        hybrid_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -2999,7 +3311,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -3008,7 +3320,7 @@ module basedao_addr::guild_dao_test {
         // fast forward to end of propoasl
         timestamp::fast_forward_seconds(duration + 1);
 
-        guild_dao::execute_coin_transfer_proposal<AptosCoin>(
+        hybrid_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
     }
@@ -3026,33 +3338,34 @@ module basedao_addr::guild_dao_test {
 
         // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint gov tokens to creator
         let mint_amount = 100_000_000_000;
         gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        guild_dao::deposit_coin_to_dao<AptosCoin>(
+        hybrid_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        guild_dao::create_coin_transfer_proposal(
+        hybrid_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3063,7 +3376,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -3076,7 +3389,7 @@ module basedao_addr::guild_dao_test {
         let member_coin_balance_before = coin::balance<AptosCoin>(signer::address_of(member_one));
 
         // should pass
-        guild_dao::execute_coin_transfer_proposal<AptosCoin>(
+        hybrid_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
 
@@ -3098,9 +3411,13 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
 
         // mint moon coins to member
         moon_coin::initialize<MoonCoin>(
@@ -3116,7 +3433,7 @@ module basedao_addr::guild_dao_test {
         
         // deposit some coins to dao
         let deposit_amount = 300_000_000;
-        guild_dao::deposit_coin_to_dao<MoonCoin>(
+        hybrid_dao::deposit_coin_to_dao<MoonCoin>(
             member_one,
             deposit_amount
         );
@@ -3133,28 +3450,36 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        guild_dao::deposit_coin_to_dao<AptosCoin>(
+        hybrid_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        guild_dao::create_coin_transfer_proposal(
+        hybrid_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3171,7 +3496,7 @@ module basedao_addr::guild_dao_test {
         let member_coin_balance_before = coin::balance<AptosCoin>(signer::address_of(member_one));
 
         // should pass
-        guild_dao::execute_coin_transfer_proposal<AptosCoin>(
+        hybrid_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
 
@@ -3184,7 +3509,7 @@ module basedao_addr::guild_dao_test {
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_WRONG_EXECUTE_PROPOSAL_FUNCTION_CALLED, location = hybrid_dao)]
     public entry fun test_proposal_to_transfer_coins_should_fail_if_called_by_wrong_execute_proposal_function(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -3194,28 +3519,36 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        guild_dao::deposit_coin_to_dao<AptosCoin>(
+        hybrid_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        guild_dao::create_coin_transfer_proposal(
+        hybrid_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3226,7 +3559,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -3236,13 +3569,13 @@ module basedao_addr::guild_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         // should fail
-        guild_dao::execute_proposal(
+        hybrid_dao::execute_proposal(
             proposal_id
         );
     }
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_MISMATCH_COIN_STRUCT_NAME, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_MISMATCH_COIN_STRUCT_NAME, location = hybrid_dao)]
     public entry fun test_proposal_to_transfer_coins_should_fail_if_given_wrong_coin_struct_name(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -3252,28 +3585,36 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
         let opt_transfer_recipient  = signer::address_of(member_one);
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoinWrong";
-        let ( duration, _, _, _)    = guild_dao::get_proposal_type_info(proposal_type);
+        let ( duration, _, _, _)    = hybrid_dao::get_proposal_type_info(proposal_type);
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        guild_dao::deposit_coin_to_dao<AptosCoin>(
+        hybrid_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        guild_dao::create_coin_transfer_proposal(
+        hybrid_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3284,7 +3625,7 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
@@ -3294,14 +3635,14 @@ module basedao_addr::guild_dao_test {
         timestamp::fast_forward_seconds(duration + 1);
 
         // should fail
-        guild_dao::execute_coin_transfer_proposal<AptosCoin>(
+        hybrid_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
     }
 
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = guild_dao)]
+    #[expected_failure(abort_code = ERROR_PROPOSAL_HAS_NOT_ENDED, location = hybrid_dao)]
     public entry fun test_execute_coin_transfer_proposal_should_fail_if_proposal_voting_has_not_ended(
         aptos_framework: &signer,
         dao_generator: &signer,
@@ -3311,11 +3652,19 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
-        // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
 
-        let proposal_id             = guild_dao::get_next_proposal_id();
+        // setup dao
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+
+        let proposal_id             = hybrid_dao::get_next_proposal_id();
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
         let proposal_type           = string::utf8(b"standard");
@@ -3325,13 +3674,13 @@ module basedao_addr::guild_dao_test {
 
         // deposit some coins to dao
         let deposit_amount          = 300_000_000;
-        guild_dao::deposit_coin_to_dao<AptosCoin>(
+        hybrid_dao::deposit_coin_to_dao<AptosCoin>(
             creator,
             deposit_amount
         );
 
         // should pass
-        guild_dao::create_coin_transfer_proposal(
+        hybrid_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3342,14 +3691,14 @@ module basedao_addr::guild_dao_test {
         );
 
         let vote_type = 1; // vote YAY
-        guild_dao::vote_for_proposal(
+        hybrid_dao::vote_for_proposal(
             creator,
             proposal_id,
             vote_type
         );
 
         // should fail
-        guild_dao::execute_coin_transfer_proposal<AptosCoin>(
+        hybrid_dao::execute_coin_transfer_proposal<AptosCoin>(
             proposal_id
         );
     }
@@ -3365,13 +3714,17 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
         
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 1000_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
 
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
@@ -3382,7 +3735,7 @@ module basedao_addr::guild_dao_test {
 
         // FA Transfer Proposal
 
-        guild_dao::create_fa_transfer_proposal(
+        hybrid_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3392,7 +3745,7 @@ module basedao_addr::guild_dao_test {
             opt_transfer_metadata
         );
 
-        guild_dao::create_fa_transfer_proposal(
+        hybrid_dao::create_fa_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3406,7 +3759,7 @@ module basedao_addr::guild_dao_test {
 
         let opt_coin_struct_name    = b"AptosCoin";
 
-        guild_dao::create_coin_transfer_proposal(
+        hybrid_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3416,7 +3769,7 @@ module basedao_addr::guild_dao_test {
             opt_coin_struct_name
         );
 
-        guild_dao::create_coin_transfer_proposal(
+        hybrid_dao::create_coin_transfer_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3435,7 +3788,7 @@ module basedao_addr::guild_dao_test {
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
 
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3448,7 +3801,7 @@ module basedao_addr::guild_dao_test {
             opt_min_amount_to_create_proposal
         );
 
-        guild_dao::create_proposal_update_proposal(
+        hybrid_dao::create_proposal_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3467,7 +3820,7 @@ module basedao_addr::guild_dao_test {
         let opt_dao_description     = option::some(string::utf8(b"New DAO Description"));
         let opt_dao_image_url       = option::some(string::utf8(b"New DAO Image URL"));
 
-        guild_dao::create_dao_update_proposal(
+        hybrid_dao::create_dao_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3477,7 +3830,7 @@ module basedao_addr::guild_dao_test {
             opt_dao_image_url
         );
 
-        guild_dao::create_dao_update_proposal(
+        hybrid_dao::create_dao_update_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3489,14 +3842,14 @@ module basedao_addr::guild_dao_test {
 
         // Standard Proposal
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
             proposal_type
         );
 
-        guild_dao::create_standard_proposal(
+        hybrid_dao::create_standard_proposal(
             creator,
             proposal_title,
             proposal_description,
@@ -3506,13 +3859,13 @@ module basedao_addr::guild_dao_test {
     }
     
 
-    // ---------------------------------------------
-    // Insufficient Role Permissions checks 
-    // ---------------------------------------------
+    // // ---------------------------------------------
+    // // Insufficient Role Permissions checks 
+    // // ---------------------------------------------
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
-    public entry fun test_guild_member_cannot_create_fa_transfer_proposal_if_vote_weight_required_exceeds_his_role_vote_weight(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_guild_member_cannot_create_fa_transfer_proposal_if_vote_weight_required_exceeds_his_final_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -3521,27 +3874,32 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
         
-        // setup governance token 
+        // setup governance token and get metadata
         gov_token::setup_test(dao_generator);
         let gov_token_metadata = gov_token::metadata();
 
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 30_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
         // add member to guild as recruit
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // add new proposal type
         let proposal_type                   = string::utf8(b"NEW_PROPOSAL_TYPE");
         let duration                        = 10000;
-        let min_amount_to_vote              = 500; // set higher
-        let min_amount_to_create_proposal   = 500; // set higher
-        let min_amount_to_execute_proposal  = 20;
+        let min_amount_to_vote              = mint_amount * 3; // set higher
+        let min_amount_to_create_proposal   = mint_amount * 3; // set higher
+        let min_amount_to_execute_proposal  = mint_amount * 3;
 
         // add new proposal
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             creator,
             proposal_type,
             duration,
@@ -3556,12 +3914,12 @@ module basedao_addr::guild_dao_test {
         let opt_transfer_amount     = 100_000_000;
         let opt_transfer_metadata   = gov_token_metadata;
 
-        // should fail as member one is recruit (100) but proposal type requires at least 500 vote weight
-        guild_dao::create_fa_transfer_proposal(
+        // should fail as member one is recruit (mint_amount * 1) but proposal type requires at least (mint_amount * 3) vote weight
+        hybrid_dao::create_fa_transfer_proposal(
             member_one,
             proposal_title,
             proposal_description,
-            proposal_type,              // NEW PROPOSAL TYPE (500) vs recruit (100)
+            proposal_type,             
             opt_transfer_recipient,
             opt_transfer_amount,
             opt_transfer_metadata
@@ -3570,8 +3928,8 @@ module basedao_addr::guild_dao_test {
     }
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
-    public entry fun test_guild_member_cannot_create_coin_transfer_proposal_if_vote_weight_required_exceeds_his_role_vote_weight(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_guild_member_cannot_create_coin_transfer_proposal_if_vote_weight_required_exceeds_his_final_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -3580,23 +3938,32 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 30_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
         // add member to guild as recruit
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // add new proposal type
         let proposal_type                   = string::utf8(b"NEW_PROPOSAL_TYPE");
         let duration                        = 10000;
-        let min_amount_to_vote              = 500; // set higher
-        let min_amount_to_create_proposal   = 500; // set higher
-        let min_amount_to_execute_proposal  = 20;
+        let min_amount_to_vote              = mint_amount * 3; // set higher
+        let min_amount_to_create_proposal   = mint_amount * 3; // set higher
+        let min_amount_to_execute_proposal  = mint_amount * 3;
 
         // add new proposal
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             creator,
             proposal_type,
             duration,
@@ -3611,8 +3978,8 @@ module basedao_addr::guild_dao_test {
         let opt_transfer_amount     = 100_000_000;
         let opt_coin_struct_name    = b"AptosCoin";
 
-        // should fail as member one is recruit (100) but proposal type requires at least 500 vote weight
-        guild_dao::create_coin_transfer_proposal(
+        // should fail as member one is recruit (mint_amount * 1) but proposal type requires at least (mint_amount * 3) vote weight
+        hybrid_dao::create_coin_transfer_proposal(
             member_one,
             proposal_title,
             proposal_description,
@@ -3625,8 +3992,8 @@ module basedao_addr::guild_dao_test {
     }
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
-    public entry fun test_guild_member_cannot_create_proposal_update_proposal_if_vote_weight_required_exceeds_his_role_vote_weight(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_guild_member_cannot_create_proposal_update_proposal_if_vote_weight_required_exceeds_his_final_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -3635,23 +4002,32 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 30_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
         // add member to guild as recruit
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // add new proposal type
         let proposal_type                   = string::utf8(b"NEW_PROPOSAL_TYPE");
         let duration                        = 10000;
-        let min_amount_to_vote              = 500; // set higher
-        let min_amount_to_create_proposal   = 500; // set higher
-        let min_amount_to_execute_proposal  = 20;
+        let min_amount_to_vote              = mint_amount * 3; // set higher
+        let min_amount_to_create_proposal   = mint_amount * 3; // set higher
+        let min_amount_to_execute_proposal  = mint_amount * 3;
 
         // add new proposal
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             creator,
             proposal_type,
             duration,
@@ -3669,8 +4045,8 @@ module basedao_addr::guild_dao_test {
         let opt_min_amount_to_vote              = option::some(100_000_000);
         let opt_min_amount_to_create_proposal   = option::some(100_000_000);
 
-        // should fail as member one is recruit (100) but proposal type requires at least 500 vote weight
-        guild_dao::create_proposal_update_proposal(
+        // should fail as member one is recruit (mint_amount * 1) but proposal type requires at least (mint_amount * 3) vote weight
+        hybrid_dao::create_proposal_update_proposal(
             member_one,
             proposal_title,
             proposal_description,
@@ -3686,8 +4062,8 @@ module basedao_addr::guild_dao_test {
     }
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
-    public entry fun test_guild_member_cannot_create_dao_update_proposal_if_vote_weight_required_exceeds_his_role_vote_weight(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_guild_member_cannot_create_dao_update_proposal_if_vote_weight_required_exceeds_his_final_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -3696,23 +4072,32 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 30_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
         // add member to guild as recruit
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // add new proposal type
         let proposal_type                   = string::utf8(b"NEW_PROPOSAL_TYPE");
         let duration                        = 10000;
-        let min_amount_to_vote              = 500; // set higher
-        let min_amount_to_create_proposal   = 500; // set higher
-        let min_amount_to_execute_proposal  = 20;
+        let min_amount_to_vote              = mint_amount * 3; // set higher
+        let min_amount_to_create_proposal   = mint_amount * 3; // set higher
+        let min_amount_to_execute_proposal  = mint_amount * 3;
 
         // add new proposal
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             creator,
             proposal_type,
             duration,
@@ -3727,8 +4112,8 @@ module basedao_addr::guild_dao_test {
         let opt_dao_description     = option::some(string::utf8(b"New DAO Description"));
         let opt_dao_image_url       = option::some(string::utf8(b"New DAO Image URL"));
 
-        // should fail as member one is recruit (100) but proposal type requires at least 500 vote weight
-        guild_dao::create_dao_update_proposal(
+        // should fail as member one is recruit (mint_amount * 1) but proposal type requires at least (mint_amount * 3) vote weight
+        hybrid_dao::create_dao_update_proposal(
             member_one,
             proposal_title,
             proposal_description,
@@ -3741,8 +4126,8 @@ module basedao_addr::guild_dao_test {
     }
 
     #[test(aptos_framework = @0x1, dao_generator = @basedao_addr, creator = @0x123, fee_receiver = @fee_receiver_addr, member_one = @0x333, member_two = @0x444)]
-    #[expected_failure(abort_code = ERROR_INSUFFICIENT_ROLE_PERMISSION, location = guild_dao)]
-    public entry fun test_guild_member_cannot_create_standard_proposal_if_vote_weight_required_exceeds_his_role_vote_weight(
+    #[expected_failure(abort_code = ERROR_INSUFFICIENT_VOTE_WEIGHT, location = hybrid_dao)]
+    public entry fun test_guild_member_cannot_create_standard_proposal_if_vote_weight_required_exceeds_his_final_vote_weight(
         aptos_framework: &signer,
         dao_generator: &signer,
         creator: &signer,
@@ -3751,23 +4136,32 @@ module basedao_addr::guild_dao_test {
         member_two: &signer,
     )  {
 
+        // setup governance token and get metadata
+        gov_token::setup_test(dao_generator);
+        let gov_token_metadata = gov_token::metadata();
+
         // setup dao
-        guild_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
-        call_init_dao(creator);
+        hybrid_dao::setup_test(aptos_framework, dao_generator, creator, fee_receiver, member_one, member_two, TEST_START_TIME);
+        call_init_dao(creator, gov_token_metadata);
+
+        // mint gov tokens to creator
+        let mint_amount = 30_000_000;
+        gov_token::mint(dao_generator, signer::address_of(creator), mint_amount);
+        gov_token::mint(dao_generator, signer::address_of(member_one), mint_amount);
 
         // add member to guild as recruit
         let default_new_member_role = string::utf8(b"recruit");
-        guild_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
+        hybrid_dao::add_or_update_member(creator, signer::address_of(member_one), default_new_member_role);
 
         // add new proposal type
         let proposal_type                   = string::utf8(b"NEW_PROPOSAL_TYPE");
         let duration                        = 10000;
-        let min_amount_to_vote              = 500; // set higher
-        let min_amount_to_create_proposal   = 500; // set higher
-        let min_amount_to_execute_proposal  = 20;
+        let min_amount_to_vote              = mint_amount * 3; // set higher
+        let min_amount_to_create_proposal   = mint_amount * 3; // set higher
+        let min_amount_to_execute_proposal  = mint_amount * 3;
 
         // add new proposal
-        guild_dao::add_or_update_proposal_types(
+        hybrid_dao::add_or_update_proposal_types(
             creator,
             proposal_type,
             duration,
@@ -3779,8 +4173,8 @@ module basedao_addr::guild_dao_test {
         let proposal_title          = string::utf8(b"Test Proposal Name");
         let proposal_description    = string::utf8(b"Test Proposal Description");
 
-        // should fail as member one is recruit (100) but proposal type requires at least 500 vote weight
-        guild_dao::create_standard_proposal(
+        // should fail as member one is recruit (mint_amount * 1) but proposal type requires at least (mint_amount * 3) vote weight
+        hybrid_dao::create_standard_proposal(
             member_one,
             proposal_title,
             proposal_description,

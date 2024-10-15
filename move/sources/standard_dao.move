@@ -1184,6 +1184,36 @@ module basedao_addr::standard_dao {
         )
     }
 
+    #[view]
+    public fun get_proposal_voter_info(proposal_id: u64, voter_addr: address): (u8, u64) acquires ProposalRegistry, ProposalTable {
+    
+        let dao_addr       = get_dao_addr();
+        
+        // get tables
+        let proposal_registry   = borrow_global<ProposalRegistry>(dao_addr);
+
+        // get creator address from registry
+        let creator_address       = *smart_table::borrow(&proposal_registry.proposal_to_proposer, proposal_id);
+
+        // get proposal table from creator
+        let proposal_table        = borrow_global<ProposalTable>(creator_address);
+
+        // find the proposal by id
+        let proposal_ref = smart_table::borrow(&proposal_table.proposals, proposal_id);
+
+        // get vote
+        let vote = smart_table::borrow(&proposal_ref.voters, voter_addr);
+
+        // return vote
+        (
+            vote.vote_type,
+            vote.vote_count
+        )
+
+    }
+
+
+
     // -----------------------------------
     // Helpers
     // -----------------------------------
