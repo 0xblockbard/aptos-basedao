@@ -28,7 +28,7 @@ With BaseDAO, we want to abstract away the technical complexities, making it ext
 
 ![DAO models](https://res.cloudinary.com/blockbard/image/upload/c_scale,w_auto,q_auto,f_auto,fl_lossy/v1729011157/dao-models-1_r2eaoi.png)
 
-## Notes on Governance Process
+## Governance Process and Proposal Types
 
 BaseDAO allows each DAO to tailor its governance mechanisms to fit its unique structure. 
 
@@ -82,9 +82,9 @@ We follow the Aptos Object Model approach, storing Proposals on user accounts ra
 
 The DAO contract maintains a ProposalRegistry struct that maps proposal IDs to their respective creators. Proposal IDs are unique and sequentially assigned, ensuring that no two proposals share the same ID, regardless of their creator.
 
-As there is no factory pattern available on Aptos Move, as compared to Solidity, where we can initialise a new module or smart contract from another, we adopt an unconventional approach to pre-generate DAO modules which can then subsequently be initialised. 
+As there is no factory pattern available on Aptos Move, compared to Solidity, where we can initialise a new module or smart contract from another, we adopt an unconventional approach to pre-generate DAO modules that can then be initialised.
 
-A DAO module can only be initialised once, preventing any possible conflicts. To help with this approach, we have developed a DAO generator python script that will be able to rapidly deploy any number of DAOs using an Aptos CLI subprocess. In the future, we plan to integrate this with a server such that a new DAO module can be generated on-demand instead.
+A DAO module can only be initialised once, preventing any possible conflicts. To help with this approach, we have developed a DAO generator Python script that will be able to rapidly deploy any number of DAOs using an Aptos CLI subprocess. In the future, we plan to integrate this with a server so that a new DAO module can be generated on-demand when required instead.
 
 ## Smart Contract Entrypoints
 
