@@ -88,7 +88,7 @@ A DAO module can only be initialised once, preventing any possible conflicts. To
 
 ## Smart Contract Entrypoints
 
-The BaseDAO standard DAO governance entrypoints includes eleven public entrypoints:
+The BaseDAO DAO module entrypoints includes eleven public entrypoints that are common to each of the DAO models (standard, guild, and hybrid):
 
 **General DAO Entrypoints**
 
