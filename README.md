@@ -40,7 +40,13 @@ For instance, DAOs could utilize quick proposals to gauge community sentiment on
 
 Proposal Types themselves can be added, modified, or removed through governance actions. In addition, in Guild DAOs and Hybrid DAOs, members holding leader roles (or those with a vote weight equal to or greater than the leader's minimum threshold) will be able to customise proposal types as well.
 
-Once a proposal accumulates sufficient YAY votes to surpass the success threshold, any member can execute it. For example, if a Fungible Asset transfer proposal is executed successfully, it will trigger a transfer from the DAO module to the intended recipient with the specified amount in the proposal.
+During a proposal's voting period (based on its corresponding proposal type), qualified users will be able to vote YAY, NAY, or PASS on the proposal. For Standard DAOs, qualified members would need to hold governance tokens equal to or above the min_amount_to_vote property in the Proposal Type. In contrast, for Guild DAOs, qualified members would required an assigned a role with a weightage equal to or above min_amount_to_vote. 
+
+On the other hand, for Hybrid DAOs, user roles serve as a multiplier for their governance token balance. As such, even users without roles but holding sufficient governance tokens above the threshold would be able to vote. Essentially, these roles magnify or diminish users' voting weight on a customisable and flexible basis. 
+
+Users will also be able to change their votes at any time before the proposal ends; their previous vote count will be removed, and a new vote count reflecting their current governance token balance or vote weight will be registered for the Standard DAO and Guild DAO respectively.
+
+After a proposal's voting period ends, if it accumulates sufficient YAY votes to surpass the success threshold, any member can execute it. For example, suppose a Fungible Asset transfer proposal is executed successfully. In that case, it will trigger a transfer from the DAO module to the intended recipient with the specified amount in the proposal.
 
 This execution mechanism applies to all proposal types except the standard proposal, which is intended for general discussions and polls rather than on-chain actions.
 
@@ -129,12 +135,12 @@ The BaseDAO DAO module entrypoints includes eleven public entrypoints that are c
    - **Output**: Votes on a proposal
 
 10. **execute_proposal**: Allows a user to executes a proposal if it has garnered sufficient votes. If insufficient votes were gathered, the proposal result would be marked as "FAIL"
-   - **Input**: Proposal ID
-   - **Output**: Executes a proposal
+    - **Input**: Proposal ID
+    - **Output**: Executes a proposal
 
 11. **execute_coin_transfer_proposal**: Allows a user to executes a coin transfer proposal if it has garnered sufficient votes. If insufficient votes were gathered, the proposal result would be marked as "FAIL"
-   - **Input**: Proposal ID and a given CoinType that should match the proposal to be executed
-   - **Output**: Executes a coin transfer proposal
+    - **Input**: Proposal ID and a given CoinType that should match the proposal to be executed
+    - **Output**: Executes a coin transfer proposal
 
 </br>
 
@@ -150,38 +156,38 @@ In addition, for the Guild and Hybrid DAO, there are 8 access-controlled entrypo
 **Leader Role Entrypoints:**
 
 12. **update_executive_vote_weight**: Allows leaders with sufficient vote weight above or equal to min_leader_vote_weight to update the min_executive_vote_weight for member access to executive-level entrypoints
-   - **Input**: Leader signer and new min_executive_vote_weight
-   - **Output**: Updates the min_executive_vote_weight
+    - **Input**: Leader signer and new min_executive_vote_weight
+    - **Output**: Updates the min_executive_vote_weight
 
 13. **update_leader_vote_weight**: Allows leaders with sufficient vote weight above or equal to min_leader_vote_weight to update the min_leader_vote_weight for member access to leader-level entrypoints
-   - **Input**: Leader signer and new min_leader_vote_weight
-   - **Output**: Updates the min_leader_vote_weight
+    - **Input**: Leader signer and new min_leader_vote_weight
+    - **Output**: Updates the min_leader_vote_weight
 
 14. **add_or_update_proposal_types**: Allows leaders to add or update proposal types
-   - **Input**: Leader signer and new proposal type parameters
-   - **Output**: Creates or updates a new proposal type
+    - **Input**: Leader signer and new proposal type parameters
+    - **Output**: Creates or updates a new proposal type
 
 15. **remove_proposal_types**: Allows leaders to remove proposal types
-   - **Input**: Leader signer and proposal type name
-   - **Output**: Removes a new proposal type
+    - **Input**: Leader signer and proposal type name
+    - **Output**: Removes a new proposal type
 
 **Executive Role Entrypoints:**
 
 16. **add_or_update_role**: Allows leaders or executives to add or update roles
-   - **Input**: Executive signer, role, and role weight
-   - **Output**: Creates or updates a role
+    - **Input**: Executive signer, role, and role weight
+    - **Output**: Creates or updates a role
 
 17. **remove_role**: Allows leaders or executives to remove roles
-   - **Input**: Executive signer and role name
-   - **Output**: Removes a role
+    - **Input**: Executive signer and role name
+    - **Output**: Removes a role
 
 18. **add_or_update_member**: Allows leaders or executives to add or update members
-   - **Input**: Executive signer, member address, and member role
-   - **Output**: Creates or updates the given member with the given member role
+    - **Input**: Executive signer, member address, and member role
+    - **Output**: Creates or updates the given member with the given member role
 
 19. **remove_member**: Allows leaders or executives to remove members
-   - **Input**: Executive signer and member address
-   - **Output**: Removes the given member 
+    - **Input**: Executive signer and member address
+    - **Output**: Removes the given member 
 
 ## Code Coverage
 
