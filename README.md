@@ -71,7 +71,7 @@ Once a vote is successfully made and the transaction is recorded on the blockcha
 
 The frontend demo for BaseDao is maintained in a separate repository to ensure that the Move contracts remain focused and well-organised.
 
-It can be found here: [BaseDAO Frontend Github](https://github.com)
+It can be found here: [BaseDAO Frontend Github](https://github.com/0xblockbard/aptos-basedao-frontend)
 
 Screenshot of sample DAOs:
 
@@ -84,7 +84,7 @@ The DAO contract maintains a ProposalRegistry struct that maps proposal IDs to t
 
 As there is no factory pattern available on Aptos Move, compared to Solidity, where we can initialise a new module or smart contract from another, we adopt an unconventional approach to pre-generate DAO modules that can then be initialised.
 
-A DAO module can only be initialised once, preventing any possible conflicts. To help with this approach, we have developed a DAO generator Python script that will be able to rapidly deploy any number of DAOs using an Aptos CLI subprocess. In the future, we plan to integrate this with a server so that a new DAO module can be generated on-demand when required instead.
+A DAO module can only be initialised once, preventing any possible conflicts. To help with this approach, we have developed a [DAO generator Python script](https://github.com/0xblockbard/aptos-basedao-generator) that will be able to rapidly deploy any number of DAOs using an Aptos CLI subprocess. In the future, we plan to integrate this with a server so that a new DAO module can be generated on-demand when required instead.
 
 ## Smart Contract Entrypoints
 
@@ -212,7 +212,7 @@ Code Coverage for Hybrid DAO at 100%
 
 We have also included a dummy data script to populate the BaseDAO Demo MVP with 9 sample DAOs. This helps to demonstrate our features and provides a realistic view of how DAOs appear and function on the site.
 
-However, do take note that you will have to run the BaseDAO generator script to deploy some DAO modules first before running the script below.
+However, do take note that you will have to run the [BaseDAO generator script](https://github.com/0xblockbard/aptos-basedao-generator) to deploy some DAO modules first before running the script below.
 
 To run the dummy data script after deploying a local instance of our frontend and BaseDAO Package, follow these steps:
 
