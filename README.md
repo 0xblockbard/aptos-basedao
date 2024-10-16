@@ -218,16 +218,15 @@ Code Coverage for Hybrid DAO at 100%
 
 We have also included a dummy data script to populate the BaseDAO Demo MVP with 9 sample DAOs. This helps to demonstrate our features and provides a realistic view of how DAOs appear and function on the site.
 
-However, do take note that you will have to run the [BaseDAO generator script](https://github.com/0xblockbard/aptos-basedao-generator) to deploy some DAO modules first before running the script below.
+However, do take note that you will have to run the [BaseDAO generator script](https://github.com/0xblockbard/aptos-basedao-generator) to deploy some DAO modules first before running the dummy data script on the frontend.
 
-To run the dummy data script after deploying a local instance of our frontend and BaseDAO Package, follow these steps:
+In your localhost frontend, with your  you will need to run the Database seeder on the frontend to provide some initial DAO data values. 
 
-```
-# compile the dummy data script and get the script path location
-aptos move compile-script
-
-# copy the script path location and paste it at the end (replace path_to_script.mv)
-aptos move run-script --compiled-script-path /path_to_script.mv
+```bash
+# setup database migrations
+php artisan migrate 
+# setup sample seeded DAOs
+php artisan db:seed 
 ```
 
 ## Future Plans
